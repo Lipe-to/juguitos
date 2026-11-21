@@ -23,7 +23,9 @@ export default function RastroRoomPage() {
   const [action, setAction] = useState<Action>({ kind: 'stay' })
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [goal, setGoal] = useState(String(DEFAULT_TARGET_SCORE))
+  const [goalDraft, setGoalDraft] = useState<{ code: string; initial: number; value: string }>()
+  const savedGoal = room?.targetScore ?? DEFAULT_TARGET_SCORE
+  const goal = goalDraft?.code === code && goalDraft.initial === savedGoal ? goalDraft.value : String(savedGoal)
   const [dismissedDuel, setDismissedDuel] = useState('')
   const duelResultKey = room?.game?.lastDuel ? `${code}_${room.game.seed}_${room.game.lastDuel.turn}` : ''
   const duelResultOpen = !!slot && !!duelResultKey && dismissedDuel !== duelResultKey
@@ -53,7 +55,6 @@ export default function RastroRoomPage() {
     if (room?.game?.duel && room.duelConfirmations?.p1 && room.duelConfirmations.p2) void import('./multiplayer').then(({ resolveDuelIfReady }) => resolveDuelIfReady(code)).catch((e) => setError(message(e)))
   }, [room, code])
 
-  useEffect(() => { setGoal(String(room?.targetScore ?? DEFAULT_TARGET_SCORE)) }, [room?.targetScore])
   useEffect(() => { setAction((a) => a.kind === 'move' ? { ...a, jump: false } : a) }, [room?.game?.round, room?.game?.seed])
 
   useEffect(() => {
@@ -90,7 +91,7 @@ export default function RastroRoomPage() {
     const value = Number(goal)
     if (!Number.isInteger(value) || value < 5 || value > 100) { setError('Escolha uma meta de 5 a 100 pontos.'); return false }
     const { updateTargetScore } = await import('./multiplayer')
-    if (value !== (room?.targetScore ?? DEFAULT_TARGET_SCORE)) await updateTargetScore(code, uid, value)
+    if (value !== savedGoal) await updateTargetScore(code, uid, value)
     return true
   }
   async function start() {
@@ -137,8 +138,8 @@ export default function RastroRoomPage() {
       </div>
       <form className="match-settings" onSubmit={async (e) => { e.preventDefault(); setBusy(true); setError(''); try { await saveGoal() } catch (e) { setError(message(e)) } finally { setBusy(false) } }}>
         <label htmlFor="target-score"><b>Pontos para vencer</b><small>{room.creator === uid ? 'Escolha de 5 a 100 pontos' : 'O anfitrião escolhe a meta'}</small></label>
-        <input id="target-score" type="number" min={5} max={100} step={1} value={goal} disabled={room.creator !== uid || busy} onChange={(e) => setGoal(e.target.value)} required/>
-        {room.creator === uid && <button className="settings-save" disabled={busy || Number(goal) === (room.targetScore ?? DEFAULT_TARGET_SCORE)}>Salvar</button>}
+        <input id="target-score" type="number" min={5} max={100} step={1} value={goal} disabled={room.creator !== uid || busy} onChange={(e) => setGoalDraft({ code, initial: savedGoal, value: e.currentTarget.value })} required/>
+        {room.creator === uid && <button className="settings-save" disabled={busy || Number(goal) === savedGoal}>Salvar</button>}
       </form>
       {room.players.p2 && room.creator === uid
         ? <button className="button button-primary button-large full-button" disabled={busy} onClick={start}>Começar partida <span>↗</span></button>
