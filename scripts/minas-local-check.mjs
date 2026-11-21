@@ -37,7 +37,13 @@ const countdown = await request(room + '/start', host)
 assert.equal(countdown.room.phase, 'countdown')
 assert.equal(countdown.room.ends - countdown.room.starts, 120000)
 const { cols, rows } = countdown.player
-const safe = countdown.player.firstRow * countdown.player.cols + Math.floor(countdown.player.cols / 2)
+const opened = Object.keys(countdown.player.open).map(Number)
+const zero = opened.find(cell => countdown.player.open[cell] === 0)
+const row = Math.floor(zero / cols), column = zero % cols
+const safe = [
+  ...(row > 0 ? [zero - cols] : []), ...(row < rows - 1 ? [zero + cols] : []),
+  ...(column > 0 ? [zero - 1] : []), ...(column < cols - 1 ? [zero + 1] : []),
+].find(cell => countdown.player.open[cell] === undefined)
 assert.ok(Number.isInteger(safe))
 const move = (cell, revision = 0) => request(room + '/move?cell=' + cell + '&revision=' + revision, host)
 const premature = await move(safe)

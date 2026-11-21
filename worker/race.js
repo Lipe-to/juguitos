@@ -3,7 +3,7 @@ import { field, neighbors, revealSafeArea } from './field.js'
 export function runner(board, stage = 1, revision = 0) {
   return { stage, revision, cols: board.cols, rows: board.rows,
     open: Object.fromEntries(board.initial.map(i => [i, board.clues[i]])),
-    flags: {}, steps: 0, firstRow: board.firstRow, mineCount: board.mineCount,
+    flags: {}, steps: 0, mineCount: board.mineCount,
     blockedUntil: 0, bomb: -1, last: board.initial.at(-1) }
 }
 
@@ -36,9 +36,7 @@ export function move(room, player, seat, seed, action, now) {
   const id = action.cell
   if (!Number.isInteger(id) || id < 0 || id >= player.cols * player.rows ||
       Object.hasOwn(player.open, id) || player.flags?.[id] ||
-      (player.steps === 0
-        ? Math.floor(id / player.cols) !== player.firstRow
-        : !neighbors(id, player.cols, player.rows).some(n => Object.hasOwn(player.open, n)))) return null
+      !neighbors(id, player.cols, player.rows).some(n => Object.hasOwn(player.open, n))) return null
   const board = field(seed, player.stage)
   const revision = player.revision + 1
   if (board.mines.has(id)) return { ...runner(board, player.stage, revision), blockedUntil: now + 5000, bomb: id }
