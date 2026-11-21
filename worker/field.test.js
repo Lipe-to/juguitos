@@ -31,6 +31,15 @@ test('travessia a 1 ms do fim decide no tempo regulamentar', () => {
   settle(r, r.ends)
   assert.equal(r.winner, 0)
 })
+test('na prorrogação vence a primeira chegada aceita entre duas quase simultâneas', () => {
+  const r = { ...room(), phase: 'overtime' }
+  const first = nearFinish(), second = nearFinish()
+  assert.ok(move(r, first, 1, seed, { cell: top, revision: 0 }, 121000))
+  assert.equal(r.phase, 'finished')
+  assert.equal(r.winner, 1)
+  assert.equal(move(r, second, 0, seed, { cell: top, revision: 0 }, 121001), null)
+  assert.equal(r.winner, 1)
+})
 test('a primeira jogada é fixa e segura; a bandeira pode ser removida', () => {
   const r = room(), p = runner(board)
   assert.ok(!board.mines.has(p.firstStep))
