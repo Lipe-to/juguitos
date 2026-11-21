@@ -25,7 +25,7 @@ describe('catalog tutorial entry', () => {
     localStorage.setItem('juguitos-room', 'OLD234')
     render(<MemoryRouter><CatalogPage/></MemoryRouter>)
     expect(screen.queryByRole('button', { name: /Retomar sala/ })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Entrar →' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }))
     expect(screen.getByRole('alert')).toBeTruthy()
     const input = screen.getByRole('textbox', { name: 'Código da sala' }) as HTMLInputElement
     fireEvent.change(input, { target: { value: 'abc234' } })

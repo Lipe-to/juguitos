@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Link, useHref, useParams } from 'react-router-dom'
+import { useHref, useParams } from 'react-router-dom'
 import { Header } from '../../layout/SiteHeader'
+import { BackLink } from '../../layout/Navigation'
 import { message } from '../../lib/errors'
 import { difficulty, flockCount, flockDuration, GUESS_MS, makeFlock, MAX_GUESS, otherSide, READY_MS, REVEAL_MS, tempo, type Side } from './engine'
 import { joinSheepRoom, nextSheepRound, sendGuess, settleSheepRound, sheepRematch, startSheepMatch, syncClock, waitForUser, watchSheepRoom, type Clock, type SheepRoom } from './online'
@@ -153,7 +154,7 @@ function SheepRoomSession({ code }: { code: string }) {
       <span className="loading-mark" aria-hidden="true">☾</span>
       <h1>{error ? 'Cadê o rebanho?' : 'Arrumando a cama…'}</h1>
       {error && <><p role="alert">{error}</p><button className="button button-outline" onClick={retryConnection}>Tentar novamente</button></>}
-      <p><Link to="/jogos/ovelhas" className="back-link">← Voltar a Conta, Ovelha!</Link></p>
+      <p><BackLink to="/jogos/ovelhas" label="Voltar a Conta, Ovelha!"/></p>
     </section>
   </main>
 
@@ -166,7 +167,7 @@ function SheepRoomSession({ code }: { code: string }) {
   return <main className="page-shell sheep-shell">
     <Header compact/>
     <div className="sheep-room-nav">
-      <Link className="back-link" to="/jogos/ovelhas">← Conta, Ovelha!</Link>
+      <BackLink to="/jogos/ovelhas" label="Voltar a Conta, Ovelha!"/>
       <button className="sheep-quiet" onClick={() => void toggleSound()} aria-pressed={audible}>{audible ? '♫ Som ligado' : '♪ Ativar som'}</button>
     </div>
     <div className="sheep-hud">

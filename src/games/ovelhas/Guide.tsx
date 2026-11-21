@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ArrowIcon } from '../../layout/Navigation'
 
 const steps = [
   { art: '☾ ✦', title: 'Boa noite, boa sorte!', text: 'Quando a pessoa dormir, conte cada ovelha quando ela entrar no campo, de qualquer lado. Se ela parar, pular de novo ou voltar pelo mesmo lado, continua sendo uma só!' },
@@ -20,7 +21,7 @@ export default function SheepGuide({ onClose }: { onClose: () => void }) {
     <h2 id="sheep-guide-title">{step.title}</h2><p>{step.text}</p>
     <div className="tutorial-dots" aria-hidden="true">{steps.map((_, i) => <i key={i} className={i === index ? 'current' : ''}/>)}</div>
     <div className="tutorial-actions">
-      <button className="button button-outline" onClick={() => index ? setIndex(index - 1) : onClose()}>{index ? 'Voltar' : 'Fechar'}</button>
+      <button className={`button button-outline ${index ? 'button-icon-only' : ''}`} aria-label={index ? 'Voltar' : undefined} title={index ? 'Voltar' : undefined} onClick={() => index ? setIndex(index - 1) : onClose()}>{index ? <ArrowIcon direction="left"/> : 'Fechar'}</button>
       <button className="button button-primary" onClick={() => index === steps.length - 1 ? onClose() : setIndex(index + 1)}>{index === steps.length - 1 ? 'Entendi!' : 'Próximo →'}</button>
     </div>
   </dialog>

@@ -14,6 +14,8 @@ Minijogos roxos para duas pessoas jogarem juntas pelo navegador. Crie uma sala e
 
 O catálogo tem um tutorial para cada jogo e um campo para entrar pelo código. No Campo Minado, a sala mostra as duas vagas: o anfitrião inicia quando ambas estiverem ocupadas e uma contagem regressiva sincroniza a largada. Para testar no mesmo aparelho, abra o convite em outro perfil ou janela anônima.
 
+As três telas de entrada seguem a mesma hierarquia, usam a identidade roxa do catálogo e mantêm arte e instruções próprias de cada jogo. A navegação de retorno usa apenas o ícone de seta, com rótulo acessível.
+
 ### Campo Minado x1
 
 - **Largada:** cada mapa começa com uma área de casas seguras conectadas na borda inferior. A primeira jogada é destacada e validada pelo servidor; ela sempre é segura. Se revelar um zero, as casas seguras ligadas a zeros se abrem em cadeia.

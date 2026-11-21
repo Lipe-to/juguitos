@@ -1,16 +1,6 @@
-.sheep-shell { max-width: 980px; }
-.sheep-shell .site-header { margin-bottom: 12px; }
-.sheep-intro { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center; gap: 26px; padding: 30px; border: 2px solid var(--deep); border-radius: 26px; background: var(--paper); box-shadow: 0 7px 0 #b69cd0; }
-.sheep-intro h1 { margin: 14px 0; font: 600 clamp(47px, 7vw, 83px)/.9 var(--display); letter-spacing: -.04em; }
-.sheep-intro h1 em { color: var(--purple); font-style: normal; }
-.sheep-intro-copy > p { color: var(--muted); font-size: 14px; line-height: 1.6; }
-.sheep-pills, .sheep-intro-actions, .sheep-panel-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.sheep-pills { margin: 20px 0; }
-.sheep-pills span { color: var(--deep); background: #eee2fd; border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 700; }
-.sheep-intro-actions .button { padding-inline: 13px; gap: 11px; }
+.sheep-panel-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .sheep-intro-art { overflow: hidden; border: 3px solid #4b287c; border-radius: 19px; background: #5e398d; box-shadow: 0 5px 0 #4b287c; }
 .sheep-intro-art > span { display: block; text-align: center; color: #f7e7ba; font-size: 10px; font-weight: 700; letter-spacing: .16em; padding: 10px; }
-.sheep-enter { margin: 23px 0 36px; }
 .sheep-room-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
 .sheep-room-nav .back-link { margin: 0; }
 .sheep-quiet { border: 1px solid #b99ad1; border-radius: 10px; min-height: 38px; padding: 6px 10px; color: var(--deep); background: #f7efff; font-size: 12px; font-weight: 700; }
@@ -57,17 +47,9 @@
 .sheep-foot span { white-space: nowrap; }
 
 @media (max-width: 760px) {
-  .sheep-intro { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  .sheep-intro h1 br { display: none; }
-  .sheep-intro h1 em::before { content: ' '; }
   .sheep-panel { flex-wrap: wrap; }
 }
 @media (max-width: 480px) {
-  .sheep-shell .site-header { margin-bottom: 4px; }
-  .sheep-intro { padding: 19px; border-radius: 20px; }
-  .sheep-intro h1 { font-size: clamp(40px, 11vw, 54px); }
-  .sheep-intro h1 br { display: initial; }
-  .sheep-intro h1 em::before { content: none; }
   .sheep-hud { gap: 6px; margin-bottom: 12px; }
   .sheep-hearts, .sheep-round { padding: 7px 4px; border-radius: 11px; }
   .sheep-round { min-width: 56px; }

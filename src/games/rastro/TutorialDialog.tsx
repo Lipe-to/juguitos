@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ArrowIcon } from '../../layout/Navigation'
 
 export default function TutorialDialog({ targetScore, onFinish }: { targetScore: number; onFinish: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -16,6 +17,6 @@ export default function TutorialDialog({ targetScore, onFinish }: { targetScore:
     <div className="tutorial-art" aria-hidden="true">{lesson.art}</div>
     <h2 id="tutorial-title">{lesson.title}</h2><p>{lesson.text}</p>
     <div className="tutorial-dots" aria-hidden="true">{lessons.map((_, i) => <i key={i} className={i === step ? 'current' : ''}/>)}</div>
-    <div className="tutorial-actions"><button className="button button-outline" onClick={() => step ? setStep(step - 1) : onFinish()}>{step ? 'Voltar' : 'Pular'}</button><button className="button button-primary" onClick={() => step === lessons.length - 1 ? onFinish() : setStep(step + 1)}>{step === lessons.length - 1 ? 'Vamos jogar!' : 'Próximo →'}</button></div>
+    <div className="tutorial-actions"><button className={`button button-outline ${step ? 'button-icon-only' : ''}`} aria-label={step ? 'Voltar' : undefined} title={step ? 'Voltar' : undefined} onClick={() => step ? setStep(step - 1) : onFinish()}>{step ? <ArrowIcon direction="left"/> : 'Pular'}</button><button className="button button-primary" onClick={() => step === lessons.length - 1 ? onFinish() : setStep(step + 1)}>{step === lessons.length - 1 ? 'Vamos jogar!' : 'Próximo →'}</button></div>
   </dialog>
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useHref, useParams } from 'react-router-dom'
+import { useHref, useParams } from 'react-router-dom'
 import { Header } from '../../layout/SiteHeader'
+import { BackLink } from '../../layout/Navigation'
 import { actionLabel, message } from '../../lib/errors'
 import { DEFAULT_TARGET_SCORE, MAP_WALLS, normalizeAction, positionsEqual, type Action, type Direction, type PlayerId } from './engine'
 import type { Room } from './multiplayer'
@@ -112,13 +113,13 @@ export default function RastroRoomPage() {
   const isJump = action.kind === 'move' && !!action.jump && !!(slot && room?.game?.jumps[slot])
   const targetScore = room?.game?.targetScore ?? room?.targetScore ?? DEFAULT_TARGET_SCORE
 
-  if (error && !room) return <main className="page-shell"><Header compact/><section className="room-loading"><span className="loading-mark">!</span><h1>Não deu para abrir a sala</h1><p>{error}</p><Link className="button button-outline" to="/">Voltar ao início</Link></section></main>
+  if (error && !room) return <main className="page-shell"><Header compact/><section className="room-loading"><span className="loading-mark">!</span><h1>Não deu para abrir a sala</h1><p>{error}</p><BackLink label="Voltar ao início"/></section></main>
   if (!room || !slot) return <main className="page-shell"><Header compact/><section className="room-loading"><span className="loading-mark loading-spin">✳</span><h1>Preparando a sala</h1><p>{error || 'Só um instante…'}</p></section></main>
 
   if (room.status === 'WAITING') return <main className="page-shell">
     <Header compact/>
     <section className="waiting-panel">
-      <Link to="/" className="back-link">← Catálogo</Link>
+      <BackLink label="Voltar ao catálogo"/>
       <span className="eyebrow">SALA DE JOGO · RASTRO</span>
       <h1>{slot === 'p1' ? 'A sala está pronta.' : 'Você entrou na sala.'}</h1>
       <p>{room.players.p2 ? 'A pessoa que criou a sala vai iniciar a partida.' : 'Falta só a outra pessoa chegar.'}</p>
@@ -149,7 +150,7 @@ export default function RastroRoomPage() {
     </section>
   </main>
 
-  if (!room.game) return <main className="page-shell"><Header compact/><section className="room-loading"><h1>Partida indisponível</h1><Link to="/">Voltar</Link></section></main>
+  if (!room.game) return <main className="page-shell"><Header compact/><section className="room-loading"><h1>Partida indisponível</h1><BackLink label="Voltar ao catálogo"/></section></main>
   const game = room.game
   const isFinished = room.status === 'FINISHED' || game.finished
   const myName = slot === 'p1' ? 'Você' : 'Você'
@@ -157,7 +158,7 @@ export default function RastroRoomPage() {
   const requestedRevenge = room.revenge[slot]
 
   return <main className="page-shell game-shell">
-    <Header compact/><div className="game-page-head"><Link to="/" className="back-link">← Jogos</Link><h1 className="arena-title">RASTRO<span>.</span></h1><div className="game-room-id">SALA {code}</div></div>
+    <Header compact/><div className="game-page-head"><BackLink label="Voltar aos jogos"/><h1 className="arena-title">RASTRO<span>.</span></h1><div className="game-room-id">SALA {code}</div></div>
     <div className="play-layout">
       <section className="board-panel">
         <div className="score-row"><ScoreCard label={myName} score={game.scores[slot]} color={slot === 'p1' ? 'purple' : 'lilac'} active={!myConfirmed && !isFinished} jumps={game.jumps[slot]}/><div className="round-count"><span>META</span><b>{targetScore}<small> pts</small></b></div><ScoreCard label={opponentName} score={game.scores[opponentSlot]} color={opponentSlot === 'p1' ? 'purple' : 'lilac'} active={!opponentConfirmed && !isFinished} jumps={game.jumps[opponentSlot]}/></div>
@@ -167,7 +168,7 @@ export default function RastroRoomPage() {
         <div className="board-legend"><span><i className="legend-wall"/> parede</span><span><i className="legend-trail"/> rastro</span><span><i className="legend-crystal"/> cristal +1</span><span><i className="legend-special"/> especial +2</span></div>
       </section>
       <aside className="controls-panel">
-        {isFinished ? <><span className="eyebrow">FIM DE JOGO</span><h2>Mais uma?</h2><p className="control-hint">A revanche começa quando os dois aceitarem.</p><div className="revenge-status"><span className={requestedRevenge ? 'status-check done' : 'status-check'}>{requestedRevenge ? '✓' : '·'}</span><span>Você</span><b>{requestedRevenge ? 'aceitou' : 'ainda não aceitou'}</b></div><div className="revenge-status"><span className={room.revenge[opponentSlot] ? 'status-check done' : 'status-check'}>{room.revenge[opponentSlot] ? '✓' : '·'}</span><span>Outra pessoa</span><b>{room.revenge[opponentSlot] ? 'aceitou' : 'aguardando'}</b></div><button className="button button-primary button-large full-button" onClick={revenge} disabled={busy || requestedRevenge}>{requestedRevenge ? 'Pedido enviado ✓' : 'Pedir revanche'} <span>↗</span></button><Link className="catalog-link" to="/">Voltar ao catálogo</Link></>
+        {isFinished ? <><span className="eyebrow">FIM DE JOGO</span><h2>Mais uma?</h2><p className="control-hint">A revanche começa quando os dois aceitarem.</p><div className="revenge-status"><span className={requestedRevenge ? 'status-check done' : 'status-check'}>{requestedRevenge ? '✓' : '·'}</span><span>Você</span><b>{requestedRevenge ? 'aceitou' : 'ainda não aceitou'}</b></div><div className="revenge-status"><span className={room.revenge[opponentSlot] ? 'status-check done' : 'status-check'}>{room.revenge[opponentSlot] ? '✓' : '·'}</span><span>Outra pessoa</span><b>{room.revenge[opponentSlot] ? 'aceitou' : 'aguardando'}</b></div><button className="button button-primary button-large full-button" onClick={revenge} disabled={busy || requestedRevenge}>{requestedRevenge ? 'Pedido enviado ✓' : 'Pedir revanche'} <span>↗</span></button><BackLink label="Voltar ao catálogo"/></>
       : <><span className="eyebrow">{myConfirmed ? 'JOGADA GUARDADA' : 'FAÇA SUA JOGADA'}</span><h2>{myConfirmed ? 'Agora é suspense…' : 'Pra onde vamos?'}</h2><p className="control-hint">Escolha seu caminho. Os dois movimentos são revelados juntos.</p><div className="direction-pad" aria-label="Escolha de movimento">{directions.map((item) => <button key={item.direction} disabled={myConfirmed || !!game.duel || overlayOpen || busy} className={`direction-button ${chosenDirection === item.direction ? 'selected' : ''}`} aria-label={item.label} aria-pressed={chosenDirection === item.direction} onClick={() => setAction({ kind: 'move', direction: item.direction, jump: isJump })}>{item.symbol}</button>)}<button disabled={myConfirmed || !!game.duel || overlayOpen || busy} className={`direction-button stay-button ${action.kind === 'stay' ? 'selected' : ''}`} aria-label="Permanecer parado" aria-pressed={action.kind === 'stay'} onClick={() => setAction({ kind: 'stay' })}>●</button></div><button className={`jump-card ${isJump ? 'jump-equipped' : ''}`} disabled={!game.jumps[slot] || action.kind === 'stay' || myConfirmed || !!game.duel || overlayOpen || busy} aria-pressed={isJump} onClick={() => setAction((a) => a.kind === 'move' ? { ...a, jump: !a.jump } : a)}><span className="jump-icon">↗</span><span><b>{isJump ? 'Salto equipado!' : 'Salto especial'}</b><small>{!game.jumps[slot] ? 'Já usado · siga andando' : action.kind === 'stay' ? 'Escolha uma direção primeiro' : 'Pule paredes e pessoas · 1 carga'}</small></span><span className="jump-badge">{!game.jumps[slot] ? '0/1' : isJump ? 'PRONTO' : '1/1'}</span></button><div className="selected-action"><span>SEU PLANO</span><b>{actionLabel(action)}</b><small>{myConfirmed ? 'Sua jogada está travada até a revelação.' : 'Pode mudar de ideia até confirmar.'}</small></div><button className="button button-primary button-large full-button confirm-button" disabled={busy || myConfirmed || !!game.duel || overlayOpen} onClick={confirm}>{myConfirmed ? 'Jogada confirmada ✓' : busy ? 'Enviando…' : 'Confirmar jogada'} {!myConfirmed && <span>→</span>}</button><div className="opponent-status"><span className={opponentConfirmed ? 'status-check done' : 'status-check'}>{opponentConfirmed ? '✓' : '·'}</span><span>{opponentConfirmed ? 'A outra pessoa já confirmou' : 'A outra pessoa está escolhendo'}</span></div><p className="keyboard-note">SETAS / WASD · ESPAÇO: PARAR<br/>J: SALTO · ENTER: CONFIRMAR</p></>}
         {!online && <div className="connection-banner">Conexão instável. Reconectando…</div>}{error && <p className="inline-error" role="alert">{error}</p>}
       </aside>

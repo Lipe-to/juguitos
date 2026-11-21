@@ -12,7 +12,7 @@
 | --- | --- |
 | `src/App.tsx` e `src/main.tsx` | Rotas e escolha do roteador. O modo Vite `pages` usa HashRouter e o build padrão usa BrowserRouter. |
 | `src/games/registry.ts` e `src/catalog/` | Metadados dos jogos, cards, tutoriais e despacho por código de convite. |
-| `src/layout/SiteHeader.tsx` e `src/style.css` | Cabeçalho, marca, botões, tokens visuais e layout compartilhado. |
+| `src/layout/` e `src/style.css` | Cabeçalho, marca, `GameIntroLayout`, ícones de navegação, botões, tokens visuais e layout compartilhado. |
 | `src/games/rastro/` e `src/games/ovelhas/` | Motores, interface e adaptação para o Firestore de cada jogo. |
 | `src/firebase/` e `firestore.rules` | Configuração, sessão anônima, acesso aos estados de jogo e testes de regras. |
 | `src/games/minas/` e `worker/` | Interface e API do Campo Minado, motor determinístico e estado persistido por sala. |
@@ -28,6 +28,8 @@
 
 - Use a paleta roxa do site com os tokens `--purple`, `--deep`, `--lilac`, `--paper` e `--ink`. A tipografia atual usa Fredoka nos títulos e DM Sans no restante.
 - Reaproveite `Header`, `page-shell`, botões e cards. Reserve cores de alerta para estados como explosão ou erro. Use texto, ícones ou contornos junto da cor para sinalizar estados.
+- As introduções dos jogos usam `GameIntroLayout`: cabeçalho central, arte à esquerda (acima no celular), resumo e regras curtas, ações e entrada por código. Passe arte e conteúdo próprios por props; preserve a mesma hierarquia e espaçamento entre jogos. Importe o CSS do jogo também na rota de introdução quando a arte depender dele.
+- Toda ação de voltar usa `BackLink` ou `ArrowIcon` apontando para a esquerda, só com o ícone visível e um `aria-label`/`title` descritivo. Ações primárias do catálogo terminam com o `ArrowIcon`; não use caracteres de seta nesses botões.
 - Teste teclado, foco visível, alvos de toque e larguras de celular. Dê a ações e células rótulos acessíveis. Mantenha placar, tempo e feedback da jogada legíveis.
 - Use texto curto em português. Sons devem respeitar as restrições de reprodução do navegador e o controle de silenciar quando o jogo tiver áudio.
 - No Campo Minado, conserve a identidade roxa do site, apresente vagas numeradas e estado de conexão na sala de espera, deixe apenas o anfitrião iniciar e mostre claramente countdown, bloqueio, corrida, prorrogação e resultado. Mantenha os controles touch e de teclado junto do botão direito; não dependa apenas de cor para mostrar células ou pontuação.

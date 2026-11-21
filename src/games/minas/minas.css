@@ -15,10 +15,6 @@
 .mine-grid button.revealed {border-color:#c6a9e5;background:#fbf4ff;color:var(--deep)}
 .mine-grid button.exploded {background:#c45138;color:white}
 .mine-flags {grid-column:1/-1;text-align:center;color:var(--deep);letter-spacing:.45em;background:#f3e1ff;border-radius:4px}
-.mine-art {display:grid;place-content:center;background:#bda0ef;min-height:160px;color:var(--deep)}
-.mine-art div {display:grid;grid-template-columns:repeat(3,36px);gap:4px;transform:rotate(-9deg)}
-.mine-art i {display:grid;place-items:center;height:36px;background:#d7bef6;border-radius:4px;font:bold 20px monospace;color:var(--deep)}
-.mine-art i:nth-child(3n+1){background:#f8eeff}
 .mine-page { max-width: 900px; padding-bottom: 36px; }
 .mine-title h1 { color: var(--deep); font-family: var(--display); }
 .mine-title h1 span { color: var(--purple); }
