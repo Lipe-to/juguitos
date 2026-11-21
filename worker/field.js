@@ -68,7 +68,7 @@ export function revealSafeArea(board, opened, firstCell, flags = {}) {
 export function field(seed, stage) {
   const cols = stage + 3, rows = 2 * stage + 4, size = cols * rows
   const random = randomSource(seed, stage)
-  const count = Math.round(size / 12), initial = []
+  const count = Math.round(size / 24), initial = []
   for (let remaining = count, y = rows - 1; remaining > 0; y--) {
     const width = Math.min(cols, remaining)
     const start = Math.floor(random() * (cols - width + 1))
@@ -76,11 +76,12 @@ export function field(seed, stage) {
     remaining -= width
   }
   const start = initial.at(-1)
-  const firstStep = start - cols
-  const protectedCells = new Set([...initial, ...neighbors(start, cols, rows, true)])
+  const firstRow = Math.floor(start / cols) - 1
+  const firstRowCells = Array.from({ length: cols }, (_, x) => firstRow * cols + x)
+  const protectedCells = new Set([...initial, ...neighbors(start, cols, rows, true), ...firstRowCells])
   let x = start % cols
   const path = [start]
-  for (let y = Math.floor(start / cols) - 1; y >= 0; y--) {
+  for (let y = firstRow; y >= 0; y--) {
     path.push(y * cols + x)
     x = Math.max(0, Math.min(cols - 1, x + Math.floor(random() * 3) - 1))
     path.push(y * cols + x)
@@ -100,7 +101,7 @@ export function field(seed, stage) {
     }
     const clues = Array.from({ length: size }, (_, i) =>
       neighbors(i, cols, rows, true).filter(n => mines.has(n)).length)
-    const board = { cols, rows, initial, mines, mineCount: mines.size, clues, firstStep }
+    const board = { cols, rows, initial, mines, mineCount: mines.size, clues, firstRow }
     if (stage > 3 || clueRoute(board)) return board
   }
 }

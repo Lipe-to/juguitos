@@ -37,7 +37,7 @@ const countdown = await request(room + '/start', host)
 assert.equal(countdown.room.phase, 'countdown')
 assert.equal(countdown.room.ends - countdown.room.starts, 120000)
 const { cols, rows } = countdown.player
-const safe = countdown.player.firstStep
+const safe = countdown.player.firstRow * countdown.player.cols + Math.floor(countdown.player.cols / 2)
 assert.ok(Number.isInteger(safe))
 const move = (cell, revision = 0) => request(room + '/move?cell=' + cell + '&revision=' + revision, host)
 const premature = await move(safe)

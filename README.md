@@ -18,7 +18,7 @@ As três telas de entrada seguem a mesma hierarquia, usam a identidade roxa do c
 
 ### Campo Minado x1
 
-- **Largada:** cada mapa começa com uma área de casas seguras conectadas na borda inferior. A primeira jogada é destacada e validada pelo servidor; ela sempre é segura. Se revelar um zero, as casas seguras ligadas a zeros se abrem em cadeia.
+- **Largada:** cada mapa começa com `round(total de casas / 24)` casas seguras conectadas na borda inferior. A primeira jogada pode ser qualquer casa da primeira linha acima da base; essa linha é segura e o servidor aceita uma única escolha. Se revelar um zero, as casas seguras ligadas a zeros se abrem em cadeia.
 - **Passos e pistas:** abra casas com contorno para avançar para uma vizinha pelo lado. Os números contam minas nas oito casas ao redor, inclusive diagonais. Abrir uma casa segura na linha de cima completa o mapa.
 - **Bandeiras:** botão direito marca ou desmarca uma casa fechada. Em telas touch, use **Modo bandeira**; no teclado, foque uma casa e pressione **F**. O clique normal abre somente casas alcançáveis.
 - **Retomada:** a identidade anônima fica no armazenamento local do navegador. Recarregar a mesma sala recupera sua vaga, mapa, bandeiras e tempo de bloqueio; use o mesmo navegador para manter essa identidade.

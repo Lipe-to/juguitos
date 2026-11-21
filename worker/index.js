@@ -65,7 +65,7 @@ export class MineRoom extends DurableObject {
     for (const player of runners) {
       const board = field(seed, player.stage)
       player.flags ??= {}
-      player.firstStep ??= board.firstStep
+      player.firstRow ??= board.firstRow
       player.steps ??= Math.max(0, Object.keys(player.open).length - board.initial.length)
     }
 

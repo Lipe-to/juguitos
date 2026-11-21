@@ -15,7 +15,7 @@ export interface Runner {
   open: Record<string, number>
   flags: Record<string, boolean>
   steps: number
-  firstStep: number
+  firstRow: number
   mineCount: number
   blockedUntil: number
   bomb: number

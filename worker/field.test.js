@@ -8,9 +8,11 @@ test('largada, pistas e rotas em 800 combinações de campo e semente', () => {
     const board = field(String(s), stage)
     const { cols, rows, initial, mines, clues } = board
     const entry = new Set(initial)
-    assert.equal(entry.size, Math.round(cols * rows / 12))
+    assert.equal(entry.size, Math.round(cols * rows / 24))
     assert.ok(initial.some(i => i >= cols * (rows-1)))
     assert.ok(initial.every(i => !mines.has(i)))
+    const firstRow = Array.from({ length: cols }, (_, x) => board.firstRow * cols + x)
+    assert.ok(firstRow.every(i => !mines.has(i)))
     assert.ok(initial.some(i => clues[i] === 0 && neighbors(i,cols,rows).some(n => !entry.has(n) && !mines.has(n))))
     const connected = new Set([initial[0]])
     for (const i of connected) for (const n of neighbors(i,cols,rows)) if (entry.has(n)) connected.add(n)
@@ -40,16 +42,19 @@ test('na prorrogação vence a primeira chegada aceita entre duas quase simultâ
   assert.equal(move(r, second, 0, seed, { cell: top, revision: 0 }, 121001), null)
   assert.equal(r.winner, 1)
 })
-test('a primeira jogada é fixa e segura; a bandeira pode ser removida', () => {
+test('qualquer casa da primeira linha é uma largada segura; bandeiras podem ser removidas', () => {
   const r = room(), p = runner(board)
-  assert.ok(!board.mines.has(p.firstStep))
-  assert.equal(move(r, p, 0, seed, { cell: p.firstStep + 1, revision: 0 }, 101), null)
-  const markedStart = flag(p, p.firstStep, true)
-  assert.equal(move(r, markedStart, 0, seed, { cell: p.firstStep, revision: 0 }, 101), null)
-  const opened = move(r, flag(markedStart, p.firstStep, false), 0, seed, { cell: p.firstStep, revision: 0 }, 101)
+  const firstRow = Array.from({ length: p.cols }, (_, x) => p.firstRow * p.cols + x)
+  const unconnectedStart = firstRow.find(cell => !neighbors(cell, p.cols, p.rows).some(n => Object.hasOwn(p.open, n)))
+  assert.ok(Number.isInteger(unconnectedStart))
+  assert.ok(firstRow.every(cell => !board.mines.has(cell)))
+  const outside = (p.firstRow - 1) * p.cols
+  assert.equal(move(r, p, 0, seed, { cell: outside, revision: 0 }, 101), null)
+  const markedStart = flag(p, unconnectedStart, true)
+  assert.equal(move(r, markedStart, 0, seed, { cell: unconnectedStart, revision: 0 }, 101), null)
+  const opened = move(r, flag(markedStart, unconnectedStart, false), 0, seed, { cell: unconnectedStart, revision: 0 }, 101)
   assert.equal(opened.steps, 1)
   assert.ok(Object.keys(opened.open).every(cell => !board.mines.has(Number(cell))))
-  const outside = p.firstStep - board.cols
   const marked = flag(p, outside, true)
   assert.equal(marked.flags[outside], true)
   assert.equal(flag(marked, outside, false).flags[outside], undefined)
@@ -72,7 +77,7 @@ test('explosão conserva mapa, bloqueio e prorrogação', () => {
   assert.deepEqual(p.open, runner(board).open)
   settle(r, r.ends)
   assert.equal(r.phase, 'overtime')
-  const cell = p.firstStep
+  const cell = p.firstRow * p.cols
   assert.equal(move(r,p,1,seed,{revision:1,cell},p.blockedUntil-1),null)
   assert.ok(move(r,p,1,seed,{revision:1,cell},p.blockedUntil))
 })

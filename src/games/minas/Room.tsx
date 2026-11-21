@@ -130,10 +130,10 @@ function RaceView({ code }: { code: string }) {
           {Array.from({ length: player.rows * player.cols }, (_, i) => {
             const clue = player.open[i], col = i % player.cols, flagged = !!player.flags[i]
             const adjacent = [i-player.cols, i+player.cols, col ? i-1 : -1, col < player.cols-1 ? i+1 : -1].some(n => player.open[n] !== undefined)
-            const available = clue === undefined && !flagged && adjacent && (player.steps > 0 || i === player.firstStep)
-            const firstStep = player.steps === 0 && i === player.firstStep
+            const firstStep = player.steps === 0 && Math.floor(i / player.cols) === player.firstRow
+            const available = clue === undefined && !flagged && (firstStep || (player.steps > 0 && adjacent))
             const state = clue !== undefined ? 'revealed' : blocked && i === player.bomb ? 'exploded' : flagged ? 'flagged' : firstStep ? 'first-step' : available ? 'available' : 'closed'
-            const label = clue !== undefined ? 'revelada, ' + (clue === 0 ? 'zero minas vizinhas' : clue + ' minas vizinhas') : blocked && player.bomb === i ? 'mina que explodiu' : flagged ? 'marcada com bandeira' : firstStep ? 'saída segura inicial' : available ? 'próximo passo disponível' : 'fechada'
+            const label = clue !== undefined ? 'revelada, ' + (clue === 0 ? 'zero minas vizinhas' : clue + ' minas vizinhas') : blocked && player.bomb === i ? 'mina que explodiu' : flagged ? 'marcada com bandeira' : firstStep ? 'primeiro lance seguro' : available ? 'próximo passo disponível' : 'fechada'
             const activate = () => {
               if (flagMode) void toggleFlag(i)
               else if (flagged) return
