@@ -10,9 +10,17 @@ Minijogos roxos para duas pessoas jogarem juntas pelo navegador. Crie uma sala e
 | --- | --- |
 | **RASTRO** | Planeje seu passo em segredo, colete cristais e chegue à meta antes do rival. Se os dois disputarem o mesmo cristal, um duelo de precisão decide quem fica com ele. |
 | **Conta, Ovelha!** | Conte cada ovelha quando ela entra no campo e envie seu palpite. Quem erra mais perde uma vida. O rebanho acelera conforme a partida avança. |
-| **Campo Minado x1** | Em dois minutos, atravesse mais campos que o rival. As pistas indicam minas vizinhas e uma explosão custa cinco segundos. Se houver empate, vence a próxima travessia. |
+| **Campo Minado x1** | Aguarde seu rival na sala e largue junto. Em dois minutos, atravesse mais campos que ele; use pistas e bandeiras para escolher cada passo. Uma explosão custa cinco segundos. Se houver empate, vence a próxima travessia. |
 
-O catálogo tem um tutorial para cada jogo e um campo para entrar pelo código. Para testar uma partida no mesmo aparelho, abra o convite em um segundo perfil ou em uma janela anônima.
+O catálogo tem um tutorial para cada jogo e um campo para entrar pelo código. No Campo Minado, a sala mostra as duas vagas: o anfitrião inicia quando ambas estiverem ocupadas e uma contagem regressiva sincroniza a largada. Para testar no mesmo aparelho, abra o convite em outro perfil ou janela anônima.
+
+### Campo Minado x1
+
+- **Largada:** cada mapa começa com uma área de casas seguras conectadas na borda inferior. A primeira jogada é destacada e validada pelo servidor; ela sempre é segura. Se revelar um zero, as casas seguras ligadas a zeros se abrem em cadeia.
+- **Passos e pistas:** abra casas com contorno para avançar para uma vizinha pelo lado. Os números contam minas nas oito casas ao redor, inclusive diagonais. Abrir uma casa segura na linha de cima completa o mapa.
+- **Bandeiras:** botão direito marca ou desmarca uma casa fechada. Em telas touch, use **Modo bandeira**; no teclado, foque uma casa e pressione **F**. O clique normal abre somente casas alcançáveis.
+- **Retomada:** a identidade anônima fica no armazenamento local do navegador. Recarregar a mesma sala recupera sua vaga, mapa, bandeiras e tempo de bloqueio; use o mesmo navegador para manter essa identidade.
+- **Acessibilidade:** cada casa informa linha, coluna e estado para leitores de tela; a área do mapa pode ser rolada nos dois sentidos. A chegada, as casas seguras, minas e estados também têm contornos, ícones e rótulos.
 
 ## Rodar localmente
 
@@ -32,7 +40,7 @@ pnpm dev
 | `pnpm test` | Motores dos jogos, interfaces e catálogo |
 | `pnpm build` | Tipos e build de produção |
 | `pnpm test:rules` | Regras do Firestore com Auth e Firestore emulados |
-| `pnpm test:minas:online` | Sala, largada, isolamento das pistas, reconexão e jogadas duplicadas no Worker local |
+| `pnpm test:minas:online` | Sala de espera, largada explícita, primeira jogada segura, bandeiras, isolamento, reconexão e jogadas duplicadas no Worker local |
 
 ## Publicação
 

@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { field } from './field.js'
-import { move, runner, settle } from './race.js'
+import { flag, move, runner, settle } from './race.js'
 
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const ttl = 24 * 60 * 60 * 1000
@@ -38,7 +38,7 @@ export class MineRoom extends DurableObject {
         expires: now + ttl,
         players: [identity],
         runners: [runner(field(seed, 1))],
-        room: { phase: 'waiting', scores: [0, 0], starts: 0, ends: 0, winner: -1 },
+        room: { phase: 'waiting', playerCount: 1, scores: [0, 0], starts: 0, ends: 0, winner: -1 },
         version: 1,
       }
       this.save(state)
@@ -50,20 +50,46 @@ export class MineRoom extends DurableObject {
     const { room, players, runners, seed } = state
     let seat = players.indexOf(identity)
     let changed = false
+    if (!Number.isInteger(room.playerCount)) { room.playerCount = players.length; changed = true }
     if (seat < 0) {
       if (op !== 'join') return fail(403, 'Entre na sala primeiro.')
-      if (room.phase !== 'waiting') return fail(409, 'Esta sala já tem dois jogadores.')
+      if (room.phase !== 'waiting' || players.length >= 2) return fail(409, 'Esta sala já tem dois jogadores.')
       seat = 1
       players.push(identity)
       runners.push(runner(field(seed, 1)))
-      room.starts = now + 3000
-      room.ends = room.starts + 120000
-      room.phase = 'running'
+      room.playerCount = players.length
       changed = true
     }
+    if (seat < 0) return fail(403, 'Entre na sala primeiro.')
+
+    for (const player of runners) {
+      const board = field(seed, player.stage)
+      player.flags ??= {}
+      player.firstStep ??= board.firstStep
+      player.steps ??= Math.max(0, Object.keys(player.open).length - board.initial.length)
+    }
+
     if (settle(room, now)) changed = true
+    if (op === 'start') {
+      if (seat !== 0) return fail(403, 'Só quem criou a sala pode iniciar a partida.')
+      if (room.phase !== 'waiting' || players.length !== 2) {
+        return fail(409, 'A outra pessoa ainda não entrou na sala.')
+      }
+      room.phase = 'countdown'
+      room.starts = now + 3000
+      room.ends = room.starts + 120000
+      changed = true
+    }
     if (op === 'move') {
       const next = move(room, runners[seat], seat, seed, action, now)
+      if (next) {
+        runners[seat] = next
+        changed = true
+      }
+    }
+    if (op === 'flag') {
+      if (!['running', 'overtime'].includes(room.phase)) return fail(409, 'As bandeiras ficam disponíveis durante a partida.')
+      const next = flag(runners[seat], action.cell, action.flagged)
       if (next) {
         runners[seat] = next
         changed = true
@@ -121,7 +147,7 @@ export default {
     }
     const [, rooms, code, op, extra] = url.pathname.split('/')
     if (rooms !== 'rooms' || !roomPattern.test(code ?? '') || extra !== undefined ||
-      (op === 'state' ? request.method !== 'GET' : !['join', 'move'].includes(op) || request.method !== 'POST')) {
+      (op === 'state' ? request.method !== 'GET' : !['join', 'start', 'move', 'flag'].includes(op) || request.method !== 'POST')) {
       return send(fail(404, 'Endereço da sala inválido.'))
     }
     const cell = url.searchParams.get('cell')
@@ -129,6 +155,11 @@ export default {
     if (op === 'move' && (!/^\d{1,9}$/.test(cell ?? '') || !/^\d{1,9}$/.test(revision ?? ''))) {
       return send(fail(400, 'Jogada inválida.'))
     }
-    return send(await env.ROOMS.getByName(code).play(op, identity, { cell: Number(cell), revision: Number(revision) }))
+    if (op === 'flag' && (!/^\d{1,9}$/.test(cell ?? '') || !['true', 'false'].includes(url.searchParams.get('flagged')))) {
+      return send(fail(400, 'Marcação inválida.'))
+    }
+    return send(await env.ROOMS.getByName(code).play(op, identity, {
+      cell: Number(cell), revision: Number(revision), flagged: url.searchParams.get('flagged') === 'true',
+    }))
   },
 }

@@ -22,7 +22,7 @@
 
 - **RASTRO** tem tabuleiro 7 × 7, meta padrão de 15 pontos e intervalo de 5 a 100 para o anfitrião. As ações são simultâneas e ocultas até as confirmações. Cada jogador tem um salto por partida. Disputa pelo mesmo cristal aciona o duelo. Preserve o sigilo das ações e a resolução atômica.
 - **Conta, Ovelha!** começa com três vidas por jogador. O mesmo rebanho determinístico aparece para os dois. Após a exibição, cada pessoa tem 12 segundos para enviar um palpite de 0 a 99. Perde uma vida quem se afasta mais da contagem ou fica sem responder quando o rival responde. Empates preservam as vidas. A dificuldade aumenta ao longo das rodadas.
-- **Campo Minado x1** tem 120 segundos, campos a partir de 4 × 6 e crescimento de 1 coluna e 2 linhas a cada travessia. A largada abre `round(total / 12)` casas conectadas na base, com pelo menos um zero e uma saída segura. A jogada abre uma vizinha pelo lado e a pista conta as oito vizinhas. A primeira casa segura no topo completa o campo. A explosão restaura a largada e bloqueia o jogador por cinco segundos. Se o tempo acabar empatado, a primeira travessia aceita pelo servidor vence. A semente e o caminho do rival ficam no Durable Object. Preserve a deduplicação por revisão e a reconexão no mesmo navegador.
+- **Campo Minado x1** tem 120 segundos, campos a partir de 4 × 6 e crescimento de 1 coluna e 2 linhas a cada travessia. A sala permanece em espera até o anfitrião iniciar com duas pessoas presentes; a contagem regressiva de 3 segundos e os 120 segundos de corrida vêm do servidor. A largada abre `round(total / 12)` casas conectadas na base, com pelo menos um zero e uma saída segura. A primeira casa segura destacada é obrigatória e aceita uma vez. Abrir um zero revela a área segura conectada. O passo abre uma vizinha pelo lado e a pista conta as oito vizinhas. Botão direito, Modo bandeira e tecla `F` marcam ou desmarcam casas fechadas; bandeiras impedem que essa casa seja aberta. A primeira casa segura no topo completa o campo. A explosão restaura a largada e bloqueia o jogador por cinco segundos. Se o tempo acabar empatado, a primeira travessia aceita pelo servidor vence. A semente, progresso e bandeiras individuais ficam no Durable Object. Preserve a deduplicação por revisão e a reconexão no mesmo navegador.
 
 ## Padrão visual
 
@@ -30,6 +30,7 @@
 - Reaproveite `Header`, `page-shell`, botões e cards. Reserve cores de alerta para estados como explosão ou erro. Use texto, ícones ou contornos junto da cor para sinalizar estados.
 - Teste teclado, foco visível, alvos de toque e larguras de celular. Dê a ações e células rótulos acessíveis. Mantenha placar, tempo e feedback da jogada legíveis.
 - Use texto curto em português. Sons devem respeitar as restrições de reprodução do navegador e o controle de silenciar quando o jogo tiver áudio.
+- No Campo Minado, conserve a identidade roxa do site, apresente vagas numeradas e estado de conexão na sala de espera, deixe apenas o anfitrião iniciar e mostre claramente countdown, bloqueio, corrida, prorrogação e resultado. Mantenha os controles touch e de teclado junto do botão direito; não dependa apenas de cor para mostrar células ou pontuação.
 
 ## Adicionar um jogo
 
@@ -43,6 +44,7 @@
 
 - Use Node.js 24 e pnpm 11.25.0. Rode `pnpm install` e `pnpm dev`. Para multiplayer local, inicie `pnpm emulators` para os jogos Firebase e `pnpm minas:dev` para Campo Minado. Use perfis de navegador separados.
 - Antes de publicar, rode `pnpm lint`, `pnpm test` e `pnpm build`. Mudanças de regras pedem `pnpm test:rules` com emuladores. Mudanças na API do Campo Minado pedem `pnpm test:minas:online` com o Worker local.
+- Para considerar o Campo Minado pronto, confira: sala mostra anfitrião e vaga do rival; convidado entra sem disparar a partida; só o anfitrião pode iniciar com duas pessoas; a contagem regressiva sincroniza; a primeira casa destacada é segura e abre uma vez; zero revela a área segura; clique direito, modo touch e tecla `F` marcam casas; abrir bandeira não avança; chegada, explosão, bloqueio de 5 segundos, reconexão, prorrogação e placar continuam corretos em duas identidades. Verifique desktop e celular, inclusive rolagem vertical e horizontal.
 - O Pages roda a partir de `main` e recebe as configurações públicas via variáveis do repositório. O Worker deve permitir explicitamente a origem do frontend em `worker/index.js`.
 - Para atualizar Firebase Hosting, use o build padrão e `pnpm exec firebase deploy --only hosting --project gemini-9815a` quando solicitado. Publique regras separadamente depois de validá-las. Para publicar o servidor de Campo Minado, use `pnpm minas:deploy` na conta Cloudflare Free autorizada.
 - Guarde configurações locais em `.env.local`. Variáveis Vite ficam visíveis no navegador. Credenciais AWS, Firebase Admin, GitHub, Cloudflare e tokens de sala devem ficar fora de código, commits e logs.

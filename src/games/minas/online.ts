@@ -1,8 +1,9 @@
 export interface Race {
+  playerCount: number
   scores: number[]
   starts: number
   ends: number
-  phase: 'waiting' | 'running' | 'overtime' | 'finished'
+  phase: 'waiting' | 'countdown' | 'running' | 'overtime' | 'finished'
   winner: number
 }
 
@@ -12,6 +13,10 @@ export interface Runner {
   cols: number
   rows: number
   open: Record<string, number>
+  flags: Record<string, boolean>
+  steps: number
+  firstStep: number
+  mineCount: number
   blockedUntil: number
   bomb: number
   last: number
@@ -70,7 +75,16 @@ export function roomState(code: string) {
   return request<Snapshot>('/rooms/' + encodeURIComponent(code) + '/state', 'GET')
 }
 
+export function startRace(code: string) {
+  return request<Snapshot>('/rooms/' + encodeURIComponent(code) + '/start', 'POST')
+}
+
 export function openCell(code: string, cell: number, revision: number) {
   const action = new URLSearchParams({ cell: String(cell), revision: String(revision) })
   return request<Snapshot>('/rooms/' + encodeURIComponent(code) + '/move?' + action, 'POST')
+}
+
+export function setFlag(code: string, cell: number, flagged: boolean) {
+  const action = new URLSearchParams({ cell: String(cell), flagged: String(flagged) })
+  return request<Snapshot>('/rooms/' + encodeURIComponent(code) + '/flag?' + action, 'POST')
 }
