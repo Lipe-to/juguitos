@@ -1,0 +1,13 @@
+{
+  "name": "juguitos-minas-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cf dev",
+    "deploy": "cf deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "2.0.0-rc.2",
+    "vite": "^8.3.3"
+  }
+}

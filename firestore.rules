@@ -1,0 +1,448 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // rooms: members, shared game, 5..100 point goal and independent move/duel confirmations.
+    // rounds/{seed_turn}/actions/{uid}: immutable private movement choices.
+    // duels/{seed_turn_stage}/attempts/{uid}: immutable cursor position (0..1), or null on timeout.
+    // sheepRooms/{Oxxxxx}: host/guest UIDs, phase, match/round IDs, seed, lives (0..3),
+    // sent/replay flags, revealed guesses (0..99 or null), a server phase timestamp
+    // and optional immutable flockVersion (absent for legacy rooms, 2..4 for new rooms).
+    // sheepRooms/{Oxxxxx}/rounds/{match_round}/guesses/{uid}: immutable {value: 0..99}.
+    // sheepClocks/{uid}: owner-only {at: server timestamp} for aligning the animation.
+    function signedIn() { return request.auth != null; }
+    function roomPath(code) { return /databases/$(database)/documents/rooms/$(code); }
+    function room(code) { return get(roomPath(code)).data; }
+    function participant(data) {
+      return signedIn() && (data.players.p1 == request.auth.uid || data.players.p2 == request.auth.uid);
+    }
+    function slot(data) { return data.players.p1 == request.auth.uid ? 'p1' : 'p2'; }
+    function changedOnly(fields) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields); }
+    function validFlags(data) { return data is map && data.keys().hasOnly(['p1', 'p2']) && data.p1 is bool && data.p2 is bool; }
+    function validGoal(value) { return value is int && value >= 5 && value <= 100; }
+    function validAction(action) {
+      return action is map && (action.kind == 'stay' ? action.keys().hasOnly(['kind']) : action.kind == 'move'
+        && action.keys().hasOnly(['kind', 'direction', 'jump']) && action.direction in ['up', 'down', 'left', 'right']
+        && (!('jump' in action) || action.jump is bool));
+    }
+    function validGame(data) {
+      return data == null || (data is map && data.keys().hasOnly(['seed', 'rngState', 'refillCount', 'mapId', 'round', 'positions', 'scores', 'jumps', 'trails', 'crystals', 'finished', 'targetScore', 'duel', 'lastDuel'])
+        && data.seed is int && data.round is int && data.round >= 1 && data.round <= 1000000 && data.finished is bool
+        && (!('targetScore' in data) || validGoal(data.targetScore))
+        && (!('crystals' in data) || (data.crystals is list && data.crystals.size() <= 8))
+        && (!('trails' in data) || (data.trails is list && data.trails.size() <= 12))
+        && (data.get('duel', null) == null || (data.duel is map
+          && data.duel.keys().hasOnly(['id', 'stage', 'center', 'width', 'periodMs', 'actions'])
+          && data.duel.id is string && data.duel.id.size() <= 80 && data.duel.stage is int && data.duel.stage >= 0 && data.duel.stage <= 1000
+          && data.duel.center is number && data.duel.center >= 0 && data.duel.center <= 1
+          && data.duel.width is number && data.duel.width >= 0.07 && data.duel.width <= 0.28
+          && data.duel.periodMs is int && data.duel.periodMs >= 300 && data.duel.periodMs <= 2600
+          && data.duel.actions.keys().hasOnly(['p1', 'p2']) && validAction(data.duel.actions.p1) && validAction(data.duel.actions.p2))));
+    }
+    function validRoom(data) {
+      return data.keys().hasOnly(['code', 'creator', 'players', 'status', 'game', 'confirmations', 'version', 'revenge', 'createdAt', 'updatedAt', 'targetScore', 'duelConfirmations'])
+        && data.code is string && data.code.matches('^[A-HJ-NP-Z2-9]{6}$')
+        && data.creator is string && data.creator.size() <= 128
+        && data.players is map && data.players.keys().hasOnly(['p1', 'p2']) && data.players.p1 == data.creator
+        && (data.players.p2 == null || (data.players.p2 is string && data.players.p2.size() <= 128 && data.players.p2 != data.players.p1))
+        && data.status in ['WAITING', 'PLAYING', 'FINISHED'] && validGame(data.game)
+        && validFlags(data.confirmations) && validFlags(data.revenge) && data.version is int && data.version >= 0
+        && data.createdAt is timestamp && data.updatedAt is timestamp
+        && (!('targetScore' in data) || validGoal(data.targetScore))
+        && (!('duelConfirmations' in data) || validFlags(data.duelConfirmations));
+    }
+    function editGoal() {
+      return resource.data.creator == request.auth.uid && resource.data.status == 'WAITING'
+        && validGoal(request.resource.data.targetScore) && changedOnly(['targetScore', 'updatedAt']);
+    }
+    function joinRoom() {
+      return resource.data.status == 'WAITING'
+        && resource.data.players.p2 == null
+        && request.resource.data.players.p1 == resource.data.players.p1
+        && request.resource.data.players.p2 == request.auth.uid
+        && request.resource.data.creator == resource.data.creator
+        && request.resource.data.status == resource.data.status
+        && changedOnly(['players', 'updatedAt']);
+    }
+    function confirmMove() {
+      return participant(resource.data)
+        && resource.data.status == 'PLAYING'
+        && resource.data.game.get('duel', null) == null
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.game == resource.data.game
+        && request.resource.data.version == resource.data.version
+        && request.resource.data.confirmations[slot(resource.data)] == true
+        && resource.data.confirmations[slot(resource.data)] == false
+        && request.resource.data.confirmations[slot(resource.data) == 'p1' ? 'p2' : 'p1'] == resource.data.confirmations[slot(resource.data) == 'p1' ? 'p2' : 'p1']
+        && existsAfter(/databases/$(database)/documents/rooms/$(resource.data.code)/rounds/$(string(resource.data.game.seed) + '_' + string(resource.data.game.round))/actions/$(request.auth.uid))
+        && changedOnly(['confirmations', 'updatedAt']);
+    }
+    function startMatch() {
+      return signedIn()
+        && resource.data.creator == request.auth.uid
+        && resource.data.status == 'WAITING'
+        && resource.data.players.p2 != null
+        && request.resource.data.status == 'PLAYING'
+        && request.resource.data.game.round == 1
+        && request.resource.data.confirmations.p1 == false
+        && request.resource.data.confirmations.p2 == false
+        && request.resource.data.version == resource.data.version + 1
+        && request.resource.data.game.targetScore == resource.data.get('targetScore', 15)
+        && changedOnly(['status', 'game', 'confirmations', 'revenge', 'version', 'updatedAt', 'duelConfirmations']);
+    }
+    function resolveMatch() {
+      return participant(resource.data)
+        && resource.data.status == 'PLAYING'
+        && resource.data.game.get('duel', null) == null
+        && resource.data.confirmations.p1 == true
+        && resource.data.confirmations.p2 == true
+        && request.resource.data.game.round == resource.data.game.round + 1
+        && request.resource.data.status == (request.resource.data.game.finished ? 'FINISHED' : 'PLAYING')
+        && request.resource.data.confirmations.p1 == false
+        && request.resource.data.confirmations.p2 == false
+        && request.resource.data.version == resource.data.version + 1
+        && request.resource.data.players == resource.data.players
+        && changedOnly(['game', 'status', 'confirmations', 'version', 'updatedAt', 'duelConfirmations']);
+    }
+    function beginDuel() {
+      return participant(resource.data) && resource.data.status == 'PLAYING' && resource.data.game.get('duel', null) == null
+        && resource.data.confirmations.p1 && resource.data.confirmations.p2
+        && request.resource.data.status == 'PLAYING' && request.resource.data.game.finished == false
+        && request.resource.data.game.round == resource.data.game.round && request.resource.data.game.seed == resource.data.game.seed
+        && request.resource.data.game.duel != null && request.resource.data.game.duel.stage == 0
+        && request.resource.data.game.positions == resource.data.game.positions && request.resource.data.game.scores == resource.data.game.scores
+        && request.resource.data.confirmations.p1 == false && request.resource.data.confirmations.p2 == false
+        && request.resource.data.duelConfirmations.p1 == false && request.resource.data.duelConfirmations.p2 == false
+        && request.resource.data.version == resource.data.version + 1
+        && changedOnly(['game', 'status', 'confirmations', 'duelConfirmations', 'version', 'updatedAt']);
+    }
+    function confirmDuel() {
+      let own = slot(resource.data);
+      let other = own == 'p1' ? 'p2' : 'p1';
+      let duel = resource.data.game.duel;
+      return participant(resource.data) && resource.data.status == 'PLAYING' && duel != null
+        && resource.data.get('duelConfirmations', {'p1': false, 'p2': false})[own] == false
+        && request.resource.data.duelConfirmations[own] == true
+        && request.resource.data.duelConfirmations[other] == resource.data.get('duelConfirmations', {'p1': false, 'p2': false})[other]
+        && existsAfter(/databases/$(database)/documents/rooms/$(resource.data.code)/duels/$(duel.id + '_' + string(duel.stage))/attempts/$(request.auth.uid))
+        && changedOnly(['duelConfirmations', 'updatedAt']);
+    }
+    function finishDuel() {
+      let old = resource.data.game;
+      let next = request.resource.data.game;
+      return participant(resource.data) && resource.data.status == 'PLAYING' && old.get('duel', null) != null
+        && resource.data.duelConfirmations.p1 && resource.data.duelConfirmations.p2
+        && next.seed == old.seed && next.targetScore == old.targetScore
+        && request.resource.data.version == resource.data.version + 1
+        && request.resource.data.duelConfirmations.p1 == false && request.resource.data.duelConfirmations.p2 == false
+        && request.resource.data.status == (next.finished ? 'FINISHED' : 'PLAYING')
+        && ((next.get('duel', null) == null && next.round == old.round + 1)
+          || (next.duel != null && next.duel.id == old.duel.id && next.duel.stage == old.duel.stage + 1 && next.duel.actions == old.duel.actions
+            && next.round == old.round && next.positions == old.positions && next.scores == old.scores && next.crystals == old.crystals && next.jumps == old.jumps && next.finished == false))
+        && changedOnly(['game', 'status', 'duelConfirmations', 'version', 'updatedAt']);
+    }
+    function startRevenge() {
+      return participant(resource.data)
+        && resource.data.status == 'FINISHED'
+        && resource.data.revenge.p1 == true
+        && resource.data.revenge.p2 == true
+        && request.resource.data.status == 'PLAYING'
+        && request.resource.data.game.round == 1
+        && request.resource.data.game.seed != resource.data.game.seed
+        && request.resource.data.revenge.p1 == false
+        && request.resource.data.revenge.p2 == false
+        && request.resource.data.version == resource.data.version + 1
+        && request.resource.data.game.targetScore == resource.data.game.get('targetScore', resource.data.get('targetScore', 15))
+        && changedOnly(['game', 'status', 'confirmations', 'revenge', 'version', 'updatedAt', 'duelConfirmations']);
+    }
+    function requestRevenge() {
+      return participant(resource.data)
+        && resource.data.status == 'FINISHED'
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.game == resource.data.game
+        && request.resource.data.revenge[slot(resource.data)] == true
+        && resource.data.revenge[slot(resource.data)] == false
+        && request.resource.data.revenge[slot(resource.data) == 'p1' ? 'p2' : 'p1'] == resource.data.revenge[slot(resource.data) == 'p1' ? 'p2' : 'p1']
+        && changedOnly(['revenge', 'updatedAt']);
+    }
+
+    match /rooms/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && validRoom(request.resource.data)
+        && request.resource.data.code == code
+        && code.matches('^[A-HJ-NP-Z2-9]{6}$')
+        && request.resource.data.creator == request.auth.uid
+        && request.resource.data.players.p1 == request.auth.uid
+        && request.resource.data.players.p2 == null
+        && request.resource.data.status == 'WAITING'
+        && request.resource.data.game == null
+        && request.resource.data.version == 0
+        && request.resource.data.confirmations.p1 == false
+        && request.resource.data.confirmations.p2 == false
+        && request.resource.data.revenge.p1 == false
+        && request.resource.data.revenge.p2 == false
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+      allow update: if signedIn() && validRoom(request.resource.data) && (
+        resource.data.status == 'WAITING' ? (joinRoom() || editGoal() || startMatch())
+        : resource.data.status == 'FINISHED' ? (requestRevenge() || startRevenge())
+        : resource.data.game.get('duel', null) != null ? (confirmDuel() || finishDuel())
+        : resource.data.confirmations.p1 && resource.data.confirmations.p2
+          ? (request.resource.data.game.round == resource.data.game.round ? beginDuel() : resolveMatch())
+          : confirmMove());
+      allow delete: if false;
+
+      match /rounds/{roundId} {
+        function parentRoom() { return room(code); }
+        function parentPath() { return roomPath(code); }
+        function slotForParent() { return parentRoom().players.p1 == request.auth.uid ? 'p1' : 'p2'; }
+        function activePlayer() { return participant(parentRoom()); }
+        function roundDataValid(data) {
+          return data.keys().hasOnly(['seed', 'round', 'confirmations', 'resolved'])
+            && data.seed is int && data.round is int
+            && roundId == string(data.seed) + '_' + string(data.round)
+            && data.confirmations is map
+            && data.confirmations.keys().hasOnly(['p1', 'p2'])
+            && data.confirmations.p1 is bool && data.confirmations.p2 is bool
+            && data.resolved is bool;
+        }
+        allow get: if activePlayer();
+        allow list: if false;
+        allow create: if activePlayer() && roundDataValid(request.resource.data) && (
+          (request.resource.data.round == 1
+            && request.resource.data.confirmations.p1 == false
+            && request.resource.data.confirmations.p2 == false
+            && request.resource.data.seed == getAfter(parentPath()).data.game.seed
+            && getAfter(parentPath()).data.status == 'PLAYING'
+            && (parentRoom().status == 'WAITING' || (parentRoom().status == 'FINISHED' && parentRoom().revenge.p1 && parentRoom().revenge.p2)))
+          || (parentRoom().status == 'PLAYING'
+            && request.resource.data.seed == parentRoom().game.seed
+            && request.resource.data.round == parentRoom().game.round
+            && request.resource.data.resolved == false
+            && request.resource.data.confirmations[slotForParent()] == true
+            && request.resource.data.confirmations[slotForParent() == 'p1' ? 'p2' : 'p1'] == false
+            && getAfter(parentPath()).data.confirmations[slotForParent()] == true
+            && getAfter(parentPath()).data.confirmations[slotForParent() == 'p1' ? 'p2' : 'p1'] == false)
+        );
+        allow update: if activePlayer() && roundDataValid(request.resource.data) && (
+          (parentRoom().status == 'PLAYING'
+            && request.resource.data.seed == resource.data.seed
+            && request.resource.data.round == resource.data.round
+            && resource.data.resolved == false
+            && request.resource.data.confirmations[slotForParent()] == true
+            && resource.data.confirmations[slotForParent()] == false
+            && request.resource.data.confirmations[slotForParent() == 'p1' ? 'p2' : 'p1'] == resource.data.confirmations[slotForParent() == 'p1' ? 'p2' : 'p1'])
+          || (parentRoom().status == 'PLAYING'
+            && parentRoom().confirmations.p1 && parentRoom().confirmations.p2
+            && request.resource.data.confirmations == resource.data.confirmations
+            && request.resource.data.resolved == true
+            && resource.data.resolved == false
+            && (getAfter(parentPath()).data.game.round == resource.data.round + 1
+              || (getAfter(parentPath()).data.game.round == resource.data.round && getAfter(parentPath()).data.game.get('duel', null) != null)))
+        );
+        allow delete: if false;
+
+        match /actions/{uid} {
+          function roundPath() { return /databases/$(database)/documents/rooms/$(code)/rounds/$(roundId); }
+          function actionRoom() { return room(code); }
+          function actionParticipant() { return participant(actionRoom()); }
+          function revealed() {
+            return get(roundPath()).data.confirmations.p1 == true
+              && get(roundPath()).data.confirmations.p2 == true;
+          }
+          allow get: if actionParticipant() && (uid == request.auth.uid || revealed());
+          allow list: if false;
+          allow create: if actionParticipant()
+            && uid == request.auth.uid
+            && request.resource.data.keys().hasOnly(['uid', 'action', 'round'])
+            && request.resource.data.uid == request.auth.uid
+            && request.resource.data.round == getAfter(roundPath()).data.round
+            && actionRoom().status == 'PLAYING' && actionRoom().game.get('duel', null) == null
+            && request.resource.data.round == actionRoom().game.round
+            && roundId == string(actionRoom().game.seed) + '_' + string(actionRoom().game.round)
+            && actionRoom().confirmations[slot(actionRoom())] == false
+            && validAction(request.resource.data.action)
+            && getAfter(roundPath()).data.confirmations[request.auth.uid == actionRoom().players.p1 ? 'p1' : 'p2'] == true
+            && getAfter(roomPath(code)).data.confirmations[request.auth.uid == actionRoom().players.p1 ? 'p1' : 'p2'] == true;
+          allow update, delete: if false;
+        }
+      }
+      match /duels/{duelKey}/attempts/{uid} {
+        function currentRoom() { return room(code); }
+        function activeDuel() {
+          return currentRoom().status == 'PLAYING' && currentRoom().game.get('duel', null) != null
+            && duelKey == currentRoom().game.duel.id + '_' + string(currentRoom().game.duel.stage);
+        }
+        function validAttempt(data) {
+          return data.keys().hasOnly(['uid', 'duelId', 'stage', 'position'])
+            && data.uid == uid && data.uid is string && data.uid.size() <= 128
+            && data.duelId is string && data.duelId.size() <= 80 && data.stage is int && data.stage >= 0 && data.stage <= 1000
+            && (data.position == null || (data.position is number && data.position >= 0 && data.position <= 1));
+        }
+        allow get: if participant(currentRoom()) && (uid == request.auth.uid || (activeDuel() && currentRoom().duelConfirmations.p1 && currentRoom().duelConfirmations.p2));
+        allow list: if false;
+        allow create: if participant(currentRoom()) && activeDuel() && uid == request.auth.uid
+          && validAttempt(request.resource.data)
+          && request.resource.data.duelId == currentRoom().game.duel.id && request.resource.data.stage == currentRoom().game.duel.stage
+          && currentRoom().get('duelConfirmations', {'p1': false, 'p2': false})[slot(currentRoom())] == false
+          && getAfter(roomPath(code)).data.duelConfirmations[slot(currentRoom())] == true;
+        allow update, delete: if false;
+      }
+    }
+    function sheepMember(r) {
+      return signedIn() && (r.host == request.auth.uid || r.guest == request.auth.uid);
+    }
+    function sheepSide(r) { return r.host == request.auth.uid ? 'p1' : 'p2'; }
+    function sheepOther(side) { return side == 'p1' ? 'p2' : 'p1'; }
+    function sheepPath(code) { return /databases/$(database)/documents/sheepRooms/$(code); }
+    function sheepTurn(r) { return string(r.match) + '_' + string(r.round); }
+    function sheepGuessPath(code, r, uid) {
+      return /databases/$(database)/documents/sheepRooms/$(code)/rounds/$(sheepTurn(r))/guesses/$(uid);
+    }
+    function sheepInteger(value, min, max) { return value is int && value >= min && value <= max; }
+    function sheepUid(uid) { return uid is string && uid.size() > 0 && uid.size() <= 128; }
+    function sheepGuessValue(n) { return n == null || sheepInteger(n, 0, 99); }
+    function sheepBlank() { return {'p1': false, 'p2': false}; }
+    function sheepFullLives() { return {'p1': 3, 'p2': 3}; }
+    function validSheepRoom(r) {
+      let keys = ['host', 'guest', 'phase', 'match', 'round', 'seed', 'lives', 'sent', 'replay', 'last', 'anchor'];
+      return r.keys().hasAll(keys) && r.keys().hasOnly(keys.concat(['flockVersion']))
+        && (!('flockVersion' in r) || (r.flockVersion is int && r.flockVersion in [2, 3, 4]))
+        && sheepUid(r.host) && (r.guest == null || (sheepUid(r.guest) && r.guest != r.host))
+        && r.phase in ['waiting', 'run', 'result', 'finished']
+        && sheepInteger(r.match, 1, 1000000) && sheepInteger(r.round, 0, 1000000)
+        && sheepInteger(r.seed, 0, 2147483647)
+        && r.lives is map && r.lives.keys().hasOnly(['p1', 'p2'])
+        && sheepInteger(r.lives.p1, 0, 3) && sheepInteger(r.lives.p2, 0, 3)
+        && validFlags(r.sent) && validFlags(r.replay) && r.anchor is timestamp
+        && (r.last == null || (r.last is map && r.last.keys().hasOnly(['p1', 'p2'])
+          && sheepGuessValue(r.last.p1) && sheepGuessValue(r.last.p2)));
+    }
+    function sheepLevel(r) { return r.round > 13 ? 12 : r.round - 1; }
+    function sheepOpens(r) {
+      let level = sheepLevel(r);
+      let ms = r.get('flockVersion', 1) in [2, 3, 4]
+        ? 14000 + (level > 6 ? 6 : level) * 600 : 12500 - level * 300;
+      return r.anchor + duration.value(ms, 'ms');
+    }
+    function sheepBaseCount(r) {
+      return r.get('flockVersion', 1) == 3
+        ? 8 + (r.round >= 2 ? 1 : 0) + (r.round >= 4 ? 1 : 0) + (r.round >= 6 ? 1 : 0)
+          + (r.round >= 8 ? 1 : 0) + (r.round >= 10 ? 1 : 0)
+        : r.get('flockVersion', 1) == 4
+          ? 8 + (r.round * 2 > 82 ? 82 : r.round * 2)
+        : r.get('flockVersion', 1) == 2
+          ? 8 + (r.round >= 3 ? 1 : 0) + (r.round >= 5 ? 1 : 0) + (r.round >= 7 ? 1 : 0) + (r.round >= 9 ? 1 : 0)
+          : 8 + sheepLevel(r) * 2;
+    }
+    function sheepVariation(r) {
+      return r.get('flockVersion', 1) == 3
+        ? (r.seed % 127 + r.round * 31 + (r.round % 7) * 13 + (r.round % 5) * 17) % 7
+        : r.get('flockVersion', 1) == 4
+          ? (r.seed % 251 + r.round * 37 + (r.round % 11) * 23 + (r.round % 7) * 17) % 10
+          : (r.seed + r.round * 13) % 5;
+    }
+    function sheepDeadline(r) { return sheepOpens(r) + duration.value(12, 's'); }
+    function sheepCanReveal(r) { return (r.sent.p1 && r.sent.p2) || request.time >= sheepDeadline(r); }
+    function sheepJoin(old, next) {
+      return old.guest == null && next.guest == request.auth.uid && changedOnly(['guest'])
+        && request.time < old.anchor + duration.value(7, 'd');
+    }
+    function sheepStart(old, next) {
+      return old.host == request.auth.uid && old.guest != null && next.phase == 'run'
+        && next.round == 1 && next.anchor == request.time && changedOnly(['phase', 'round', 'anchor']);
+    }
+    function sheepLockGuess(code, old, next) {
+      let own = sheepSide(old);
+      return request.time >= sheepOpens(old) && request.time < sheepDeadline(old)
+        && old.sent[own] == false && next.sent[own] == true
+        && next.sent[sheepOther(own)] == old.sent[sheepOther(own)]
+        && changedOnly(['sent']) && existsAfter(sheepGuessPath(code, old, request.auth.uid));
+    }
+    function sheepError(total, value) {
+      return value == null ? 100 : (value >= total ? value - total : total - value);
+    }
+    function sheepCheckedResult(code, old, next) {
+      let total = sheepBaseCount(old) + sheepVariation(old);
+      let p1 = old.sent.p1 ? get(sheepGuessPath(code, old, old.host)).data.value : null;
+      let p2 = old.sent.p2 ? get(sheepGuessPath(code, old, old.guest)).data.value : null;
+      let d1 = sheepError(total, p1);
+      let d2 = sheepError(total, p2);
+      let life1 = old.lives.p1 - (d1 > d2 ? 1 : 0);
+      let life2 = old.lives.p2 - (d2 > d1 ? 1 : 0);
+      return next.last == {'p1': p1, 'p2': p2} && next.lives == {'p1': life1, 'p2': life2}
+        && next.phase == (life1 == 0 || life2 == 0 ? 'finished' : 'result');
+    }
+    function sheepResolve(code, old, next) {
+      return sheepCanReveal(old) && next.anchor == request.time
+        && changedOnly(['phase', 'lives', 'last', 'anchor']) && sheepCheckedResult(code, old, next);
+    }
+    function sheepNext(old, next) {
+      return request.time >= old.anchor + duration.value(4700, 'ms')
+        && next.phase == 'run' && next.round == old.round + 1 && next.sent == sheepBlank()
+        && next.last == null && next.anchor == request.time
+        && changedOnly(['phase', 'round', 'sent', 'last', 'anchor']);
+    }
+    function sheepReplay(old, next) {
+      let own = sheepSide(old);
+      let other = sheepOther(own);
+      return old.replay[own] == false && (next.phase == 'finished'
+        ? next.replay[own] == true && next.replay[other] == old.replay[other] && changedOnly(['replay'])
+        : old.replay[other] && next.phase == 'run' && next.match == old.match + 1 && next.round == 1
+          && next.lives == sheepFullLives() && next.replay == sheepBlank() && next.sent == sheepBlank()
+          && next.last == null && next.anchor == request.time
+          && changedOnly(['phase', 'match', 'round', 'seed', 'lives', 'sent', 'replay', 'last', 'anchor']));
+    }
+
+    match /sheepRooms/{code} {
+      allow get: if signedIn() && code.matches('^O[A-HJ-NP-Z2-9]{5}$')
+        && (resource == null || sheepMember(resource.data)
+          || (resource.data.phase == 'waiting' && resource.data.guest == null
+            && request.time < resource.data.anchor + duration.value(7, 'd')));
+      allow create: if signedIn() && code.matches('^O[A-HJ-NP-Z2-9]{5}$')
+        && validSheepRoom(request.resource.data)
+        && request.resource.data.host == request.auth.uid && request.resource.data.guest == null
+        && request.resource.data.phase == 'waiting' && request.resource.data.round == 0 && request.resource.data.match == 1
+        && request.resource.data.lives == sheepFullLives() && request.resource.data.sent == sheepBlank()
+        && request.resource.data.replay == sheepBlank() && request.resource.data.last == null
+        && request.resource.data.anchor == request.time;
+      allow update: if signedIn() && validSheepRoom(request.resource.data) && (
+        resource.data.phase == 'waiting'
+          ? (sheepJoin(resource.data, request.resource.data) || sheepStart(resource.data, request.resource.data))
+          : sheepMember(resource.data) && (
+            resource.data.phase == 'run'
+              ? (request.resource.data.phase == 'run'
+                ? sheepLockGuess(code, resource.data, request.resource.data)
+                : sheepResolve(code, resource.data, request.resource.data))
+              : resource.data.phase == 'result'
+                ? sheepNext(resource.data, request.resource.data)
+                : sheepReplay(resource.data, request.resource.data)));
+      allow list, delete: if false;
+
+      match /rounds/{turn}/guesses/{uid} {
+        function sheepParent() { return get(sheepPath(code)).data; }
+        function isActiveTurn(r) { return r.phase == 'run' && turn == sheepTurn(r); }
+        function validPrivateGuess(g) { return g.keys().hasOnly(['value']) && sheepInteger(g.value, 0, 99); }
+        function canCreateGuess(r) {
+          let own = sheepSide(r);
+          let after = getAfter(sheepPath(code)).data;
+          return sheepMember(r) && request.auth.uid == uid && isActiveTurn(r)
+            && request.time >= sheepOpens(r) && request.time < sheepDeadline(r)
+            && !r.sent[own] && after.sent[own] && isActiveTurn(after);
+        }
+        allow get: if sheepMember(sheepParent())
+          && (uid == request.auth.uid || (isActiveTurn(sheepParent()) && sheepCanReveal(sheepParent())));
+        allow create: if signedIn() && validPrivateGuess(request.resource.data) && canCreateGuess(sheepParent());
+        allow list, update, delete: if false;
+      }
+    }
+
+    match /sheepClocks/{uid} {
+      function validClock(clock) { return clock.keys().hasOnly(['at']) && clock.at == request.time; }
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid && validClock(request.resource.data);
+      allow list, delete: if false;
+    }
+  }
+}

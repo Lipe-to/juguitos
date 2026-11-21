@@ -1,0 +1,21 @@
+.mine-intro,.mine-guide {padding:clamp(1.25rem,5vw,3.5rem);background:#f5ebff;color:var(--ink);border:2px solid var(--deep);border-radius:20px}
+.mine-intro p,.mine-guide p {max-width:56ch;line-height:1.55}
+.mine-guide {margin:auto;max-width:min(90vw,510px)}
+.mine-guide::backdrop {background:#241237c9}
+.mine-intro h1,.mine-title h1 {font-size:clamp(1.65rem,5vw,3.4rem);letter-spacing:-.045em;margin:.3em 0}
+.mine-code {display:block;font: bold 2.4rem monospace;letter-spacing:.15em;margin:1rem 0}
+.mine-title,.mine-score {display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.mine-score {background:var(--deep);color:#fff;padding:.7rem 1rem;border-radius:10px;font-variant-numeric:tabular-nums}
+.mine-score strong {color:#ead7ff}
+.mine-status {padding:.7rem 0}
+.mine-scroll {max-height:clamp(180px,58dvh,690px);overflow:auto;overscroll-behavior:contain;border-radius:12px;background:#e5d4f7;border:2px solid var(--deep)}
+.mine-grid {display:grid;gap:3px;width:max-content;margin:auto;padding:8px}
+.mine-grid button {height:44px;border:1px solid #7852a3;background:#a17acb;border-radius:5px;font:bold 1.2rem monospace;opacity:1;touch-action:manipulation}
+.mine-grid button.available {border:3px solid var(--deep);background:#d9bfff;cursor:pointer}
+.mine-grid button.revealed {border-color:#c6a9e5;background:#fbf4ff;color:var(--deep)}
+.mine-grid button.exploded {background:#c45138;color:white}
+.mine-flags {grid-column:1/-1;text-align:center;color:var(--deep);letter-spacing:.45em;background:#f3e1ff;border-radius:4px}
+.mine-art {display:grid;place-content:center;background:#bda0ef;min-height:160px;color:var(--deep)}
+.mine-art div {display:grid;grid-template-columns:repeat(3,36px);gap:4px;transform:rotate(-9deg)}
+.mine-art i {display:grid;place-items:center;height:36px;background:#d7bef6;border-radius:4px;font:bold 20px monospace;color:var(--deep)}
+.mine-art i:nth-child(3n+1){background:#f8eeff}
