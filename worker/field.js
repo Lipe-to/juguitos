@@ -52,7 +52,8 @@ export function revealSafeArea(board, opened, firstCell, flags = {}) {
 
   while (pending.length) {
     const cell = pending.pop()
-    if (visited.has(cell) || board.mines.has(cell) || flags[cell]) continue
+    // The finish row is only opened by an explicit move, which scores a point.
+    if (cell < board.cols || visited.has(cell) || board.mines.has(cell) || flags[cell]) continue
     visited.add(cell)
     next[cell] = board.clues[cell]
     if (board.clues[cell] === 0) {
@@ -65,10 +66,12 @@ export function revealSafeArea(board, opened, firstCell, flags = {}) {
   return next
 }
 
-export function field(seed, stage) {
+export function field(seed, stage, legacy = false) {
   const cols = stage + 3, rows = 2 * stage + 4, size = cols * rows
   const random = randomSource(seed, stage)
-  const count = Math.max(2, Math.round(size / 24)), initial = []
+  const initialCount = Math.max(2, Math.round(size / 24))
+  const count = legacy ? initialCount : Math.min(3, initialCount)
+  const initial = []
   for (let remaining = count, y = rows - 1; remaining > 0; y--) {
     const width = Math.min(cols, remaining)
     const start = Math.floor(random() * (cols - width + 1))
@@ -100,6 +103,6 @@ export function field(seed, stage) {
     const clues = Array.from({ length: size }, (_, i) =>
       neighbors(i, cols, rows, true).filter(n => mines.has(n)).length)
     const board = { cols, rows, initial, mines, mineCount: mines.size, clues }
-    if (stage > 3 || clueRoute(board)) return board
+    if ((legacy && stage > 3) || clueRoute(board)) return board
   }
 }

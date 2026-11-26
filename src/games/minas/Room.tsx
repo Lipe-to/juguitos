@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Header } from '../../layout/SiteHeader'
 import { joinRoom, openCell, roomState, setFlag, startRace, type Snapshot, type Runner } from './online'
@@ -58,16 +58,24 @@ function RaceView({ code }: { code: string }) {
     const id = setInterval(() => beat(step++ % 4 === 0 ? 135 : 220, .08, .028), 480)
     return () => clearInterval(id)
   }, [live, muted])
-  useEffect(() => {
-    if (!player || !board.current) return
+  useLayoutEffect(() => {
+    const viewport = board.current
+    if (!player || !viewport) return
     const prior = previous.current
     if (prior?.revision !== player.revision) {
       const bomb = player.bomb >= 0
-      const target = board.current.querySelector<HTMLElement>('[data-cell="' + (bomb ? player.bomb : player.last) + '"]')
+      const atStart = player.steps === 0
+      if (atStart) viewport.scrollTop = viewport.scrollHeight
+
+      const target = viewport.querySelector<HTMLElement>(`[data-cell="${player.last}"]`)
       if (target) {
-        const box = board.current.getBoundingClientRect(), cell = target.getBoundingClientRect()
-        if (cell.top < box.top || cell.bottom > box.bottom) board.current.scrollTop += cell.top - box.top - box.height / 2
-        if (cell.left < box.left || cell.right > box.right) board.current.scrollLeft += cell.left - box.left - box.width / 2
+        const box = viewport.getBoundingClientRect(), cell = target.getBoundingClientRect()
+        if (!atStart && (cell.top < box.top || cell.bottom > box.bottom)) {
+          viewport.scrollTop += (cell.top + cell.bottom - box.top - box.bottom) / 2
+        }
+        if (cell.left < box.left || cell.right > box.right) {
+          viewport.scrollLeft += (cell.left + cell.right - box.left - box.right) / 2
+        }
       }
       if (prior && !muted) {
         if (prior.stage < player.stage) cleared()
@@ -122,11 +130,11 @@ function RaceView({ code }: { code: string }) {
     {room && room.phase !== 'waiting' && player && <>
       <div className="mine-score" aria-label="Placar"><strong>{room.phase === 'overtime' ? 'Prorrogação' : Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0')}</strong><span>Jogador {seat + 1} <b>{room.scores[seat]}</b></span><span>Jogador {2 - seat} <b>{room.scores[1-seat]}</b></span></div>
       {room.phase === 'finished' ? <section className="mine-intro mine-result"><h2>{room.winner === seat ? 'Você venceu!' : 'O rival venceu!'}</h2><p>Placar final: {room.scores[0]} a {room.scores[1]} campos.</p><Link className="button button-primary" to="/jogos/minas">Nova corrida</Link></section> : <>
-        <div className="mine-status" role="status"><strong>Campo {player.stage}</strong> · {room.phase === 'countdown' ? 'Largada em ' + Math.max(0, Math.ceil((room.starts-now)/1000)) + ' s' : blocked ? 'Explosão! Aguarde ' + Math.ceil((player.blockedUntil-now)/1000) + ' s' : room.phase === 'overtime' ? 'A próxima travessia vence!' : seconds <= 10 && tied ? 'Empate leva à prorrogação!' : 'Avance até as bandeiras.'}</div>
+        <div className="mine-status" role="status"><strong>Campo {player.stage}</strong> · {room.phase === 'countdown' ? 'Largada em ' + Math.max(0, Math.ceil((room.starts-now)/1000)) + ' s' : blocked ? 'Explosão! Aguarde ' + Math.ceil((player.blockedUntil-now)/1000) + ' s' : room.phase === 'overtime' ? 'A próxima travessia vence!' : seconds <= 10 && tied ? 'Empate leva à prorrogação!' : player.steps === 0 ? 'Parta das casas abertas embaixo.' : 'Abra uma casa segura na linha da chegada.'}</div>
         <div className="mine-controls"><button className={'button ' + (flagMode ? 'button-primary' : 'button-outline')} aria-pressed={flagMode} disabled={!canFlag} onClick={() => setFlagMode(v => !v)}>{flagMode ? 'Modo bandeira ligado ⚑' : 'Modo bandeira ⚑'}</button><span>Botão direito ou toque no modo bandeira · tecla F marca/desmarca</span></div>
         <div className="mine-legend" aria-label="Legenda do campo"><span><i className="legend-closed"/> Fechada</span><span><i className="legend-open"/> Revelada</span><span><i className="legend-ready"/> Próximo passo</span><span><i className="legend-flag"/> Bandeira</span></div>
-        <div className="mine-scroll" ref={board} role="region" aria-label="Campo de minas. Deslize para navegar pelo tabuleiro." tabIndex={0}><div className="mine-grid" style={{ gridTemplateColumns: 'repeat(' + player.cols + ', minmax(44px, 1fr))', width: 'min(100%, calc(' + player.cols + ' * 64px + 16px))' }}>
-          <div className="mine-flags" aria-label="Chegada">{Array.from({ length: player.cols }, (_, i) => <span key={i} aria-hidden="true">⚑</span>)}</div>
+        <div className="mine-scroll" ref={board} role="region" aria-label="Campo de minas. Deslize para navegar pelo tabuleiro." tabIndex={0}><div className="mine-grid" style={{ gridTemplateColumns: `repeat(${player.cols}, minmax(44px, 1fr))`, width: `min(100%, ${player.cols * 64 + 16}px)`, minWidth: player.cols * 44 + (player.cols - 1) * 3 + 16 }}>
+          <div className="mine-edge"><span aria-hidden="true">⚑</span> Chegada</div>
           {Array.from({ length: player.rows * player.cols }, (_, i) => {
             const clue = player.open[i], col = i % player.cols, flagged = !!player.flags[i]
             const adjacent = [i-player.cols, i+player.cols, col ? i-1 : -1, col < player.cols-1 ? i+1 : -1].some(n => player.open[n] !== undefined)
@@ -145,6 +153,7 @@ function RaceView({ code }: { code: string }) {
               onKeyDown={e => { if (e.key.toLowerCase() === 'f' && clue === undefined) { e.preventDefault(); void toggleFlag(i) } }}
               onClick={activate}>{clue ?? (flagged ? '⚑' : blocked && player.bomb === i ? '✹' : '')}</button>
           })}
+          <div className="mine-edge">Largada</div>
         </div></div>
       </>}
     </>}

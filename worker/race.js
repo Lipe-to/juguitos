@@ -30,14 +30,14 @@ export function flag(player, cell, flagged) {
 }
 
 // Called inside a room transaction, after settling the regulation deadline.
-export function move(room, player, seat, seed, action, now) {
+export function move(room, player, seat, seed, action, now, legacyField = false) {
   if (!['running', 'overtime'].includes(room.phase) || now < room.starts ||
       now < player.blockedUntil || action.revision !== player.revision) return null
   const id = action.cell
   if (!Number.isInteger(id) || id < 0 || id >= player.cols * player.rows ||
       Object.hasOwn(player.open, id) || player.flags?.[id] ||
       !neighbors(id, player.cols, player.rows).some(n => Object.hasOwn(player.open, n))) return null
-  const board = field(seed, player.stage)
+  const board = field(seed, player.stage, legacyField)
   const revision = player.revision + 1
   if (board.mines.has(id)) return { ...runner(board, player.stage, revision), blockedUntil: now + 5000, bomb: id }
   if (id < board.cols) {
@@ -46,7 +46,7 @@ export function move(room, player, seat, seed, action, now) {
       room.phase = 'finished'
       room.winner = seat
     }
-    return runner(field(seed, player.stage + 1), player.stage + 1, revision)
+    return runner(field(seed, player.stage + 1, legacyField), player.stage + 1, revision)
   }
   const flags = { ...(player.flags ?? {}) }
   delete flags[id]

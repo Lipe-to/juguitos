@@ -14,7 +14,6 @@
 .mine-grid button.available {border:3px solid var(--deep);background:#d9bfff;cursor:pointer}
 .mine-grid button.revealed {border-color:#c6a9e5;background:#fbf4ff;color:var(--deep)}
 .mine-grid button.exploded {background:#c45138;color:white}
-.mine-flags {grid-column:1/-1;text-align:center;color:var(--deep);letter-spacing:.45em;background:#f3e1ff;border-radius:4px}
 .mine-page { max-width: 900px; padding-bottom: 36px; }
 .mine-title h1 { color: var(--deep); font-family: var(--display); }
 .mine-title h1 span { color: var(--purple); }
@@ -53,15 +52,14 @@
 .legend-flag { background: #f7e9ae; }
 .mine-grid button.mine-cell { position: relative; display: grid; place-items: center; width: 100%; height: auto; min-width: 44px; min-height: 44px; aspect-ratio: 1; border: 1px solid #7852a3; background: #a17acb; border-radius: 5px; color: var(--deep); font: 700 16px/1 monospace; padding: 0; touch-action: manipulation; }
 .mine-grid button.mine-cell.closed:disabled { opacity: 1; cursor: default; }
-.mine-grid button.mine-cell.available,.mine-grid button.mine-cell.first-step { border: 3px solid var(--deep); background: #d9bfff; cursor: pointer; }
-.mine-grid button.mine-cell.first-step { outline: 3px solid #e7c65d; outline-offset: 1px; color: #593c79; }
+.mine-grid button.mine-cell.available { border: 3px solid var(--deep); background: #d9bfff; cursor: pointer; }
 .mine-grid button.mine-cell.revealed { border-color: #c6a9e5; background: #fbf4ff; color: var(--deep); }
 .mine-grid button.mine-cell.flagged { border-color: #a48442; background: #f7e9ae; color: #765a1c; cursor: pointer; }
 .mine-grid button.mine-cell.exploded { background: #c45138; color: white; }
 .mine-grid button.mine-cell:disabled { cursor: default; }
-.mine-flags { display: flex; justify-content: space-around; min-height: 28px; padding: 2px; font-size: 17px; }
+.mine-edge { grid-column: 1 / -1; padding: 4px 8px; text-align: center; border-radius: 4px; background: #f3e1ff; color: var(--deep); font-size: .8rem; font-weight: 700; }
 .mine-scroll { max-height: min(64dvh,720px); max-width: 100%; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-.mine-grid { margin: 0 auto; grid-auto-rows: 1fr; }
+.mine-grid { margin: 0 auto; }
 .mine-result { margin: 30px auto; text-align: center; }
 .mine-result p { margin-inline: auto; }
 @media (max-width: 520px) {

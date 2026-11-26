@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
+import { neighbors } from '../worker/field.js'
 
 const endpoint = process.argv.find(arg => /^https?:\/\//.test(arg)) ?? 'http://127.0.0.1:8787'
 const identity = () => 'Bearer ' + randomBytes(16).toString('hex')
@@ -38,6 +39,8 @@ assert.equal(countdown.room.phase, 'countdown')
 assert.equal(countdown.room.ends - countdown.room.starts, 120000)
 const { cols, rows } = countdown.player
 const opened = Object.keys(countdown.player.open).map(Number)
+assert.equal(opened.length, 2)
+assert.ok(opened.every(cell => cell >= cols * (rows - 1)))
 const zero = opened.find(cell => countdown.player.open[cell] === 0)
 const row = Math.floor(zero / cols), column = zero % cols
 const safe = [
@@ -61,4 +64,36 @@ assert.deepEqual(one.player, duplicate.player)
 assert.equal((await state(guest)).player.steps, 0)
 assert.deepEqual((await request(room + '/join', host)).player, one.player)
 assert.equal((await move(cols * rows + 1, 1)).player.revision, 1)
-console.log('Sala de espera, largada explícita, primeira jogada, bandeiras, jogada duplicada e reconexão verificadas com duas identidades.')
+
+// Cross the field using only the clues sent to the player.
+const knownMines = new Set()
+let current = one
+while (current.player.stage === 1) {
+  const { open, revision } = current.player
+  assert.ok(Object.keys(open).every(cell => Number(cell) >= cols))
+  const clues = Object.keys(open).map(Number)
+  const frontier = new Set(clues.flatMap(cell => neighbors(cell, cols, rows)))
+  const safeCells = new Set()
+  let previousMineCount
+  do {
+    previousMineCount = knownMines.size
+    for (const cell of clues) {
+      const nearby = neighbors(cell, cols, rows, true)
+      const unknown = nearby.filter(id => !Object.hasOwn(open, id) && !knownMines.has(id))
+      const remaining = open[cell] - nearby.filter(id => knownMines.has(id)).length
+      if (remaining === 0) unknown.forEach(id => safeCells.add(id))
+      else if (remaining === unknown.length) unknown.forEach(id => knownMines.add(id))
+    }
+  } while (knownMines.size > previousMineCount)
+  const next = [...safeCells].find(cell => cell < cols && frontier.has(cell)) ??
+    [...safeCells].find(cell => frontier.has(cell))
+  assert.ok(next !== undefined, 'As pistas precisam permitir avançar até a chegada.')
+  current = await move(next, revision)
+  assert.equal(current.player.revision, revision + 1)
+  assert.equal(current.player.bomb, -1)
+}
+assert.equal(current.player.stage, 2)
+assert.deepEqual(current.room.scores, [1, 0])
+assert.equal(Object.keys(current.player.open).length, 2)
+assert.deepEqual((await state(guest)).room.scores, [1, 0])
+console.log('Sala, largada, bandeiras, reconexão e travessia até o campo seguinte verificadas com duas identidades.')

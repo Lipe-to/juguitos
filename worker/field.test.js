@@ -8,8 +8,8 @@ test('largada, pistas e rotas em 800 combinações de campo e semente', () => {
     const board = field(String(s), stage)
     const { cols, rows, initial, mines, clues } = board
     const entry = new Set(initial)
-    assert.equal(entry.size, Math.max(2, Math.round(cols * rows / 24)))
-    assert.ok(initial.some(i => i >= cols * (rows-1)))
+    assert.equal(entry.size, Math.min(3, Math.max(2, Math.round(cols * rows / 24))))
+    assert.ok(initial.every(i => i >= cols * (rows-1)))
     assert.ok(initial.every(i => !mines.has(i)))
     assert.ok(initial.some(i => clues[i] === 0 && neighbors(i,cols,rows).some(n => !entry.has(n) && !mines.has(n))))
     const connected = new Set([initial[0]])
@@ -17,7 +17,7 @@ test('largada, pistas e rotas em 800 combinações de campo e semente', () => {
     assert.equal(connected.size, entry.size)
     for (const i of connected) for (const n of neighbors(i,cols,rows)) if (!mines.has(n)) connected.add(n)
     assert.ok([...connected].some(i => i < cols))
-    if (stage <= 3) assert.ok(clueRoute(board))
+    assert.ok(clueRoute(board))
   }
 })
 const seed = 'corrida'
@@ -67,6 +67,25 @@ test('abrir um zero revela a área segura vizinha em cadeia', () => {
     assert.ok(board.mines.has(cell) || cell === safeNeighbor || Object.hasOwn(opened, cell))
   }
   assert.ok(Object.keys(opened).every(cell => !board.mines.has(Number(cell))))
+})
+test('uma abertura em cadeia perto do topo deixa a chegada disponível para pontuar', () => {
+  const r = room()
+  const seedWithZero = '0'
+  const map = field(seedWithZero, 1)
+  const cell = map.clues.findIndex((clue, index) => index >= map.cols && index < map.cols * 2 && clue === 0)
+  assert.notEqual(cell, -1)
+  const previous = cell + map.cols
+  const player = { ...runner(map), steps: 1, open: { [previous]: map.clues[previous] } }
+  const next = move(r, player, 0, seedWithZero, { cell, revision: 0 }, 101)
+  const finish = cell - map.cols
+  assert.equal(next.open[cell], 0)
+  assert.equal(next.open[finish], undefined)
+  assert.deepEqual(r.scores, [0, 0])
+
+  const nextField = move(r, next, 0, seedWithZero, { cell: finish, revision: 1 }, 102)
+  assert.deepEqual(r.scores, [1, 0])
+  assert.equal(nextField.stage, 2)
+  assert.equal(Object.keys(nextField.open).length, 2)
 })
 test('explosão conserva mapa, bloqueio e prorrogação', () => {
   const r = room(), bomb = [...board.mines][0]

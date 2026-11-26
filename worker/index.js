@@ -35,6 +35,7 @@ export class MineRoom extends DurableObject {
       const seed = randomBytes(16).toString('hex')
       state = {
         seed,
+        fieldVersion: 2,
         expires: now + ttl,
         players: [identity],
         runners: [runner(field(seed, 1))],
@@ -48,6 +49,7 @@ export class MineRoom extends DurableObject {
 
     if (!state) return fail(404, 'Sala não encontrada ou expirada.')
     const { room, players, runners, seed } = state
+    const legacyField = state.fieldVersion === undefined
     let seat = players.indexOf(identity)
     let changed = false
     if (!Number.isInteger(room.playerCount)) { room.playerCount = players.length; changed = true }
@@ -56,16 +58,28 @@ export class MineRoom extends DurableObject {
       if (room.phase !== 'waiting' || players.length >= 2) return fail(409, 'Esta sala já tem dois jogadores.')
       seat = 1
       players.push(identity)
-      runners.push(runner(field(seed, 1)))
+      runners.push(runner(field(seed, 1, legacyField)))
       room.playerCount = players.length
       changed = true
     }
     if (seat < 0) return fail(403, 'Entre na sala primeiro.')
 
     for (const player of runners) {
-      const board = field(seed, player.stage)
       player.flags ??= {}
-      player.steps ??= Math.max(0, Object.keys(player.open).length - board.initial.length)
+      if (player.steps === undefined) {
+        const board = field(seed, player.stage, legacyField)
+        player.steps = Math.max(0, Object.keys(player.open).length - board.initial.length)
+        changed = true
+      }
+      // Restore the final click in games that revealed the finish before this fix.
+      if (legacyField) {
+        const revealedFinish = Object.keys(player.open).filter(cell => Number(cell) < player.cols)
+        if (revealedFinish.length > 0) {
+          for (const cell of revealedFinish) delete player.open[cell]
+          player.revision++
+          changed = true
+        }
+      }
     }
 
     if (settle(room, now)) changed = true
@@ -80,7 +94,7 @@ export class MineRoom extends DurableObject {
       changed = true
     }
     if (op === 'move') {
-      const next = move(room, runners[seat], seat, seed, action, now)
+      const next = move(room, runners[seat], seat, seed, action, now, legacyField)
       if (next) {
         runners[seat] = next
         changed = true
