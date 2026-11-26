@@ -9,6 +9,7 @@ import SheepGuide, { SheepCardArt } from '../games/ovelhas/Guide'
 import MineGuide from '../games/minas/Guide'
 import MinesArt from '../games/minas/MinesArt'
 import { ArrowIcon } from '../layout/Navigation'
+import { PRACTICE_CODE, practicePath } from '../games/practice'
 const mines = games.find(game => game.id === 'minas')!
 const rastro = games.find((game) => game.id === 'rastro')!
 const sheep = games.find((game) => game.id === 'ovelhas')!
@@ -16,11 +17,13 @@ const sheep = games.find((game) => game.id === 'ovelhas')!
 export default function CatalogPage() {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
+  const [choosePractice, setChoosePractice] = useState(false)
   const [guide, setGuide] = useState<'rastro' | 'ovelhas' | 'minas' | null>(null)
   const navigate = useNavigate()
   function enter(e: React.FormEvent) {
     e.preventDefault()
     const clean = code.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+    if (clean === PRACTICE_CODE) { setChoosePractice(true); return }
     if (clean.length !== 6) { setError('O código precisa ter seis caracteres.'); return }
     navigate(`/jogos/${clean.startsWith('I') ? 'minas' : clean.startsWith('O') ? 'ovelhas' : 'rastro'}/sala/${clean}`)
   }
@@ -50,7 +53,8 @@ export default function CatalogPage() {
           <h3>{mines.name}</h3><p>{mines.description}</p><div className="game-actions"><Link className="button button-primary" to={mines.route}>Cruzar o campo <ArrowIcon/></Link>
           <button className="button button-outline" aria-label="Como jogar Campo Minado x1" onClick={() => setGuide('minas')}>Como jogar ?</button></div></div>
       </article>
-      <section className="room-entry" aria-labelledby="room-heading"><div><span className="eyebrow">JÁ TEM UM CONVITE?</span><h2 id="room-heading">Entre em uma sala</h2><p>Digite o código que a outra pessoa compartilhou.</p></div><form className="join-form" onSubmit={enter}><label className="sr-only" htmlFor="room-code">Código da sala</label><input id="room-code" value={code} onChange={(e) => { setCode(e.target.value); setError('') }} placeholder="EX.: A7KM2P" maxLength={6} autoComplete="off" autoCapitalize="characters" spellCheck={false}/><button className="button button-outline" type="submit">Entrar <ArrowIcon/></button></form></section>
+      <section className="room-entry" aria-labelledby="room-heading"><div><span className="eyebrow">JÁ TEM UM CONVITE?</span><h2 id="room-heading">Entre em uma sala</h2><p>Use um convite ou digite {PRACTICE_CODE} para treinar com bot.</p></div><form className="join-form" onSubmit={enter}><label className="sr-only" htmlFor="room-code">Código da sala</label><input id="room-code" value={code} onChange={(e) => { setCode(e.target.value); setError(''); setChoosePractice(false) }} placeholder="EX.: A7KM2P" maxLength={PRACTICE_CODE.length} autoComplete="off" autoCapitalize="characters" spellCheck={false}/><button className="button button-outline" type="submit">Entrar <ArrowIcon/></button></form></section>
+      {choosePractice && <section className="room-entry" aria-labelledby="practice-heading"><h2 id="practice-heading">Qual jogo você quer testar?</h2><div className="game-actions">{games.filter(game => game.available).map(game => <Link key={game.id} className="button button-outline" to={practicePath(game.id)}>{game.name}</Link>)}</div></section>}
       {!firebaseReady && <div className="setup-banner"><span>ⓘ</span><p>{firebaseSetupMessage()}</p></div>}
       {error && <div className="inline-error" role="alert">{error}</div>}
       <p className="coming-soon"><span>✦</span> Próximos jogos: ainda no forno.</p>

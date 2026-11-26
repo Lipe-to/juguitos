@@ -1,3 +1,4 @@
+import { PRACTICE_CODE } from '../practice'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GameIntroLayout } from '../../layout/GameIntroLayout'
@@ -25,12 +26,12 @@ export default function Intro() {
   function enter(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const clean = code.trim().toUpperCase()
-    if (!/^I[A-HJ-NP-Z2-9]{5}$/.test(clean)) { setError('Digite o código de seis caracteres da sala. Ele começa com a letra I.'); return }
+    if (clean !== PRACTICE_CODE && !/^I[A-HJ-NP-Z2-9]{5}$/.test(clean)) { setError('Digite o código de seis caracteres da sala. Ele começa com a letra I.'); return }
     navigate(`/jogos/minas/sala/${clean}`)
   }
 
   return <>
-    <GameIntroLayout number="003" category="LÓGICA · CORRIDA" title={<>Campo Minado <em>x1</em></>}
+    <GameIntroLayout gameId='minas' number="003" category="LÓGICA · CORRIDA" title={<>Campo Minado <em>x1</em></>}
       tagline="Dois minutos. O mesmo mapa. Quem chega mais vezes às bandeiras?"
       art={<MinesArt className="game-intro-illustration mine-intro-illustration"/>}
       summary="Avance casa por casa e use as pistas para evitar as minas."
@@ -42,7 +43,7 @@ export default function Intro() {
       </>}
       joinForm={<form className="game-intro-join-form" onSubmit={enter}>
         <label className="sr-only" htmlFor="mines-code">Código da sala</label>
-        <input id="mines-code" value={code} onChange={e => { setCode(e.target.value); setError('') }} placeholder="EX.: I7KM2P" maxLength={6} autoComplete="off" autoCapitalize="characters" spellCheck={false}/>
+        <input id="mines-code" value={code} onChange={e => { setCode(e.target.value); setError('') }} placeholder="EX.: I7KM2P" maxLength={PRACTICE_CODE.length} autoComplete="off" autoCapitalize="characters" spellCheck={false}/>
         <button className="button button-outline" type="submit">Entrar</button>
       </form>}
       status={error && <p className="inline-error" role="alert">{error}</p>}

@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+import { practicePath } from '../games/practice'
 import { Header } from './SiteHeader'
 import { BackLink } from './Navigation'
 
 export interface GameIntroLayoutProps {
+  gameId: string
   number: string
   category: string
   title: ReactNode
@@ -17,7 +20,7 @@ export interface GameIntroLayoutProps {
   footnote?: ReactNode
 }
 
-export function GameIntroLayout({ number, category, title, tagline, art, summary, description, details, actions, joinForm, status, footnote }: GameIntroLayoutProps) {
+export function GameIntroLayout({ gameId, number, category, title, tagline, art, summary, description, details, actions, joinForm, status, footnote }: GameIntroLayoutProps) {
   return <main className="page-shell game-intro-shell">
     <Header compact/>
     <section className="game-intro-wrap">
@@ -37,7 +40,7 @@ export function GameIntroLayout({ number, category, title, tagline, art, summary
           </div>
         </div>
         <div className="game-intro-actions">
-          <div className="game-intro-action-buttons">{actions}</div>
+          <div className="game-intro-action-buttons">{actions}<Link className="button button-outline" to={practicePath(gameId)}>Treinar com bot</Link></div>
           <div className="game-intro-join">
             <span className="eyebrow">JÁ TEM UM CONVITE?</span>
             <p>Digite o código que a outra pessoa compartilhou.</p>

@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Header } from '../../layout/SiteHeader'
-import { joinRoom, openCell, roomState, setFlag, startRace, type Snapshot, type Runner } from './online'
+import * as online from './online'
+import type { Snapshot, Runner } from './online'
+import { createMinePractice } from './practice'
+import { PRACTICE_CODE } from '../practice'
 import { beat, cleared, unlock } from './sound'
 import './minas.css'
 
@@ -11,6 +14,8 @@ export default function Room() {
 }
 
 function RaceView({ code }: { code: string }) {
+  const practice = useMemo(() => code === PRACTICE_CODE ? createMinePractice() : null, [code])
+  const session = practice ?? online
   const [snapshot, setSnapshot] = useState<Snapshot>()
   const { room, player, seat = 0 } = snapshot ?? {}
   const [offset, setOffset] = useState(0), [now, setNow] = useState(Date.now)
@@ -32,7 +37,7 @@ function RaceView({ code }: { code: string }) {
     async function poll(joining: boolean) {
       try {
         const sent = Date.now()
-        const next = await (joining ? joinRoom(code) : roomState(code))
+        const next = await (joining ? session.joinRoom(code) : session.roomState(code))
         if (!active) return
         setOffset(next.now - (sent + Date.now()) / 2)
         update(next)
@@ -45,7 +50,7 @@ function RaceView({ code }: { code: string }) {
     }
     void poll(true)
     return () => { active = false; clearTimeout(timer) }
-  }, [code, retry, update])
+  }, [code, retry, session, update])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now() + offset), 125)
@@ -91,21 +96,21 @@ function RaceView({ code }: { code: string }) {
     if (!player || busyRevision.current === player.revision) return
     const revision = player.revision
     busyRevision.current = revision
-    try { update(await openCell(code, cell, revision)) }
+    try { update(await session.openCell(code, cell, revision)) }
     catch (e) { setError((e as Error).message) }
     finally { if (busyRevision.current === revision) busyRevision.current = -1 }
   }
   async function toggleFlag(cell: number) {
     if (!player || !live || blocked || busyFlags.current.has(cell)) return
     busyFlags.current.add(cell)
-    try { update(await setFlag(code, cell, !player.flags[cell])) }
+    try { update(await session.setFlag(code, cell, !player.flags[cell])) }
     catch (e) { setError((e as Error).message) }
     finally { busyFlags.current.delete(cell) }
   }
   async function start() {
     if (startBusy) return
     setStartBusy(true)
-    try { update(await startRace(code)); setError('') }
+    try { update(await session.startRace(code)); setError('') }
     catch (e) { setError((e as Error).message) }
     finally { setStartBusy(false) }
   }
@@ -118,18 +123,18 @@ function RaceView({ code }: { code: string }) {
     {error && <p className="mine-error" role="alert">{error} <button className="button button-outline" onClick={() => { setError(''); setRetry(r => r + 1) }}>Tentar novamente</button></p>}
     {!room && !error && <p className="mine-loading" role="status">Conectando à sala…</p>}
     {room?.phase === 'waiting' && <section className="mine-lobby mine-intro" aria-labelledby="mine-lobby-title">
-      <span className="eyebrow">SALA DE ESPERA · {code}</span><h2 id="mine-lobby-title">Convide seu rival</h2>
-      <p>Quando as duas vagas estiverem ocupadas, quem criou a sala pode iniciar a contagem regressiva. A vaga deste jogador fica salva neste navegador.</p>
-      <button className="mine-invite" onClick={() => navigator.clipboard.writeText(location.href).then(() => setCopied(true)).catch(() => setError('Não foi possível copiar. Compartilhe o código ' + code + '.'))}>{copied ? 'Link copiado ✓' : 'Copiar link da sala'}</button>
+      <span className="eyebrow">{practice ? 'SALA DE TREINO' : 'SALA DE ESPERA'} · {code}</span><h2 id="mine-lobby-title">{practice ? 'Corrida contra o bot' : 'Convide seu rival'}</h2>
+      <p>{practice ? 'O bot já está na sala. Comece quando quiser.' : 'Quando as duas vagas estiverem ocupadas, quem criou a sala pode iniciar a contagem regressiva. A vaga deste jogador fica salva neste navegador.'}</p>
+      {!practice && <button className="mine-invite" onClick={() => navigator.clipboard.writeText(location.href).then(() => setCopied(true)).catch(() => setError('Não foi possível copiar. Compartilhe o código ' + code + '.'))}>{copied ? 'Link copiado ✓' : 'Copiar link da sala'}</button>}
       <div className="mine-seats" aria-label="Jogadores na sala">
         <div className="mine-seat"><span className="mine-avatar">1</span><span><b>Jogador 1 · Anfitrião</b><small>{seat === 0 ? 'Sua vaga' : 'Vaga ocupada'}</small></span><strong aria-label="Vaga ocupada">●</strong></div>
-        <div className="mine-seat"><span className="mine-avatar mine-avatar-guest">2</span><span><b>Jogador 2</b><small>{snapshot && seat === 1 ? 'Sua vaga' : room.playerCount > 1 ? 'Vaga ocupada' : 'Aguardando o rival entrar…'}</small></span><strong className={room.playerCount > 1 ? '' : 'mine-seat-empty'} aria-label={room.playerCount > 1 ? 'Vaga ocupada' : 'Vaga livre'}>{room.playerCount > 1 ? '●' : '○'}</strong></div>
+        <div className="mine-seat"><span className="mine-avatar mine-avatar-guest">2</span><span><b>{practice ? 'Bot' : 'Jogador 2'}</b><small>{snapshot && seat === 1 ? 'Sua vaga' : room.playerCount > 1 ? 'Vaga ocupada' : 'Aguardando o rival entrar…'}</small></span><strong className={room.playerCount > 1 ? '' : 'mine-seat-empty'} aria-label={room.playerCount > 1 ? 'Vaga ocupada' : 'Vaga livre'}>{room.playerCount > 1 ? '●' : '○'}</strong></div>
       </div>
       {seat === 0 ? <button className="button button-primary mine-full-button" disabled={startBusy || !snapshot || room.playerCount < 2} onClick={() => void start()}>{startBusy ? 'Preparando a largada…' : room.playerCount >= 2 ? 'Iniciar partida' : 'Aguardando o segundo jogador'}</button> : <p className="mine-waiting-note" role="status">Você entrou. O anfitrião iniciará a partida quando estiver pronto.</p>}
     </section>}
     {room && room.phase !== 'waiting' && player && <>
-      <div className="mine-score" aria-label="Placar"><strong>{room.phase === 'overtime' ? 'Prorrogação' : Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0')}</strong><span>Jogador {seat + 1} <b>{room.scores[seat]}</b></span><span>Jogador {2 - seat} <b>{room.scores[1-seat]}</b></span></div>
-      {room.phase === 'finished' ? <section className="mine-intro mine-result"><h2>{room.winner === seat ? 'Você venceu!' : 'O rival venceu!'}</h2><p>Placar final: {room.scores[0]} a {room.scores[1]} campos.</p><Link className="button button-primary" to="/jogos/minas">Nova corrida</Link></section> : <>
+      <div className="mine-score" aria-label="Placar"><strong>{room.phase === 'overtime' ? 'Prorrogação' : Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0')}</strong><span>{practice ? 'Você' : 'Jogador ' + (seat + 1)} <b>{room.scores[seat]}</b></span><span>{practice ? 'Bot' : 'Jogador ' + (2 - seat)} <b>{room.scores[1-seat]}</b></span></div>
+      {room.phase === 'finished' ? <section className="mine-intro mine-result"><h2>{room.winner === seat ? 'Você venceu!' : 'O rival venceu!'}</h2><p>Placar final: {room.scores[0]} a {room.scores[1]} campos.</p>{practice ? <button className="button button-primary" onClick={async () => { setFlagMode(false); update(await practice.reset()); setRetry(i => i + 1) }}>Nova corrida</button> : <Link className="button button-primary" to="/jogos/minas">Nova corrida</Link>}</section> : <>
         <div className="mine-status" role="status"><strong>Campo {player.stage}</strong> · {room.phase === 'countdown' ? 'Largada em ' + Math.max(0, Math.ceil((room.starts-now)/1000)) + ' s' : blocked ? 'Explosão! Aguarde ' + Math.ceil((player.blockedUntil-now)/1000) + ' s' : room.phase === 'overtime' ? 'A próxima travessia vence!' : seconds <= 10 && tied ? 'Empate leva à prorrogação!' : player.steps === 0 ? 'Parta das casas abertas embaixo.' : 'Abra uma casa segura na linha da chegada.'}</div>
         <div className="mine-controls"><button className={'button ' + (flagMode ? 'button-primary' : 'button-outline')} aria-pressed={flagMode} disabled={!canFlag} onClick={() => setFlagMode(v => !v)}>{flagMode ? 'Modo bandeira ligado ⚑' : 'Modo bandeira ⚑'}</button><span>Botão direito ou toque no modo bandeira · tecla F marca/desmarca</span></div>
         <div className="mine-legend" aria-label="Legenda do campo"><span><i className="legend-closed"/> Fechada</span><span><i className="legend-open"/> Revelada</span><span><i className="legend-ready"/> Próximo passo</span><span><i className="legend-flag"/> Bandeira</span></div>

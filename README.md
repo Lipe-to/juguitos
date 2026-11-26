@@ -16,6 +16,10 @@ O catálogo tem um tutorial para cada jogo e um campo para entrar pelo código. 
 
 As três telas de entrada seguem a mesma hierarquia, usam a identidade roxa do catálogo e mantêm arte e instruções próprias de cada jogo. A navegação de retorno usa apenas o ícone de seta, com rótulo acessível.
 
+### Treino com bot
+
+Digite **`0000000000`** no catálogo e escolha um jogo, ou use **Treinar com bot** na tela de entrada de qualquer jogo. A sala já tem um bot e é individual. A partida acontece no navegador, sem login ou uso da cota do multiplayer. Recarregar a página volta à sala de espera para começar outro treino.
+
 ### Campo Minado x1
 
 - **Largada:** cada mapa começa com duas ou três casas seguras já abertas na linha de baixo. Desde o primeiro passo, abra uma casa fechada que encoste pelo lado numa casa aberta. Zeros revelam a área segura ao redor, e a chegada fica reservada para o clique que marca o ponto.

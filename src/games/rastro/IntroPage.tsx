@@ -1,3 +1,4 @@
+import { PRACTICE_CODE } from '../practice'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { firebaseReady, firebaseSetupMessage } from '../../firebase/config'
@@ -24,7 +25,7 @@ export default function RastroIntroPage() {
   }
 
   return <>
-    <GameIntroLayout number="001" category="ESTRATÉGIA" title={<>RASTRO<span className="game-intro-title-dot">.</span></>}
+    <GameIntroLayout gameId='rastro' number="001" category="ESTRATÉGIA" title={<>RASTRO<span className="game-intro-title-dot">.</span></>}
       tagline="O próximo passo pode mudar tudo."
       art={<div className="intro-mark"><div className="intro-board"><i/><i/><i/><i/><i/><i/><i/><i/><i/></div><span>◆</span><b/></div>}
       summary="Um tabuleiro. Dois caminhos. E cristais para conquistar."
@@ -36,7 +37,7 @@ export default function RastroIntroPage() {
       </>}
       joinForm={<form className="game-intro-join-form" onSubmit={e => { e.preventDefault(); if (code.trim()) navigate(`/jogos/rastro/sala/${code.trim().toUpperCase()}`) }}>
         <label className="sr-only" htmlFor="intro-code">Código da sala</label>
-        <input id="intro-code" value={code} onChange={e => setCode(e.target.value)} placeholder="Tenho um código" maxLength={6} autoComplete="off" autoCapitalize="characters" spellCheck={false}/>
+        <input id="intro-code" value={code} onChange={e => setCode(e.target.value)} placeholder="Tenho um código" maxLength={PRACTICE_CODE.length} autoComplete="off" autoCapitalize="characters" spellCheck={false}/>
         <button className="button button-outline" type="submit">Entrar</button>
       </form>}
       status={<>{!firebaseReady && <p className="setup-note">{firebaseSetupMessage()}</p>}{error && <p className="inline-error" role="alert">{error}</p>}</>}

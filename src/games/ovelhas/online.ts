@@ -20,7 +20,7 @@ export type SheepRoom = {
   sent: Pair<boolean>
   replay: Pair<boolean>
   last: Guesses | null
-  anchor: Timestamp
+  anchor: Pick<Timestamp, 'toMillis'>
 }
 type Turn = Pick<SheepRoom, 'match' | 'round'>
 export type Clock = { now: () => number; latency: number }

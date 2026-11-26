@@ -1,3 +1,4 @@
+import { PRACTICE_CODE } from '../practice'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { firebaseReady, firebaseSetupMessage } from '../../firebase/config'
@@ -28,12 +29,12 @@ export default function SheepIntroPage() {
   function enter(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const clean = code.trim().toUpperCase()
-    if (!SHEEP_CODE.test(clean)) { setError('Digite o código de seis caracteres da sala. Ele começa com a letra O.'); return }
+    if (clean !== PRACTICE_CODE && !SHEEP_CODE.test(clean)) { setError('Digite o código de seis caracteres da sala. Ele começa com a letra O.'); return }
     navigate(`/jogos/ovelhas/sala/${clean}`)
   }
 
   return <>
-    <GameIntroLayout number="002" category="MEMÓRIA · ATENÇÃO" title={<>Conta, <em>Ovelha!</em></>}
+    <GameIntroLayout gameId='ovelhas' number="002" category="MEMÓRIA · ATENÇÃO" title={<>Conta, <em>Ovelha!</em></>}
       tagline="Uma soneca. Um rebanho cheio de truques. Quantas ovelhas entraram?"
       art={<div className="sheep-intro-art"><SheepStage mood="idle"/><span>☾ TURNO DA NOITE</span></div>}
       summary="Observe o campo enquanto a pessoa dorme. Cada ovelha só conta uma vez."
@@ -45,7 +46,7 @@ export default function SheepIntroPage() {
       </>}
       joinForm={<form className="game-intro-join-form" onSubmit={enter}>
         <label className="sr-only" htmlFor="sheep-code">Código da sala</label>
-        <input id="sheep-code" value={code} maxLength={6} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="EX.: O7KM2P" onChange={e => { setCode(e.target.value); setError('') }}/>
+        <input id="sheep-code" value={code} maxLength={PRACTICE_CODE.length} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="EX.: O7KM2P" onChange={e => { setCode(e.target.value); setError('') }}/>
         <button className="button button-outline" type="submit">Entrar</button>
       </form>}
       status={<>{!firebaseReady && <p className="setup-note">{firebaseSetupMessage()}</p>}{error && <p className="inline-error" role="alert">{error}</p>}</>}

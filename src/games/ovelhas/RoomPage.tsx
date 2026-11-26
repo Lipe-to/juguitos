@@ -4,7 +4,8 @@ import { Header } from '../../layout/SiteHeader'
 import { BackLink } from '../../layout/Navigation'
 import { message } from '../../lib/errors'
 import { difficulty, flockCount, flockDuration, GUESS_MS, makeFlock, MAX_GUESS, otherSide, READY_MS, REVEAL_MS, tempo, type Side } from './engine'
-import { joinSheepRoom, nextSheepRound, sendGuess, settleSheepRound, sheepRematch, startSheepMatch, syncClock, waitForUser, watchSheepRoom, type Clock, type SheepRoom } from './online'
+import type { Clock, SheepRoom } from './online'
+import { PRACTICE_CODE } from '../practice'
 import { SheepStage, type StageMood } from './Stage'
 import { SheepSound } from './sound'
 import './sheep.css'
@@ -18,6 +19,12 @@ export default function SheepRoomPage() {
 }
 
 function SheepRoomSession({ code }: { code: string }) {
+  const practice = code === PRACTICE_CODE
+  const loadSession = useMemo(() => {
+    const openSession = () => practice ? import('./practice').then(({ createSheepPractice }) => createSheepPractice()) : import('./online')
+    let session: ReturnType<typeof openSession> | undefined
+    return () => session ??= openSession()
+  }, [practice])
   const inviteHref = useHref('/jogos/ovelhas/sala/' + code)
   const [room, setRoom] = useState<SheepRoom | null>(null)
   const [clock, setClock] = useState<Clock | null>(null)
@@ -39,6 +46,7 @@ function SheepRoomSession({ code }: { code: string }) {
     let stop: (() => void) | undefined
     async function connect() {
       try {
+        const { waitForUser, joinSheepRoom, syncClock, watchSheepRoom } = await loadSession()
         const user = await waitForUser()
         if (!active) return
         const [member, synced] = await Promise.all([joinSheepRoom(code, user.uid), syncClock(user.uid)])
@@ -51,7 +59,7 @@ function SheepRoomSession({ code }: { code: string }) {
     }
     void connect()
     return () => { active = false; stop?.() }
-  }, [code, connectAttempt])
+  }, [code, connectAttempt, loadSession])
 
   const phase = room?.phase, round = room?.round ?? 0, seed = room?.seed ?? 0
   const version = room?.flockVersion ?? 1
@@ -81,6 +89,8 @@ function SheepRoomSession({ code }: { code: string }) {
     async function advance() {
       if (!alive || !room || !clock) return
       try {
+        const { settleSheepRound, nextSheepRound } = await loadSession()
+        if (!alive) return
         if (room.phase === 'run') await settleSheepRound(code, room, clock)
         else await nextSheepRound(code, room, clock)
       } catch (e) {
@@ -91,7 +101,7 @@ function SheepRoomSession({ code }: { code: string }) {
     }
     timer = window.setTimeout(() => void advance(), Math.max(0, readyAt - clock.now()))
     return () => { alive = false; window.clearTimeout(timer) }
-  }, [anchor, bothMissed, clock, code, deadline, offline, room])
+  }, [anchor, bothMissed, clock, code, deadline, loadSession, offline, room])
 
   useEffect(() => {
     if (!audible) return
@@ -173,7 +183,7 @@ function SheepRoomSession({ code }: { code: string }) {
     <div className="sheep-hud">
       <Hearts label="Você" lives={room.lives[side]} side={side}/>
       <div className="sheep-round"><span>{phase === 'waiting' ? 'MODO' : 'RODADA'}</span><strong>{phase === 'waiting' ? '☾' : String(round).padStart(2, '0')}</strong></div>
-      <Hearts label="Outra pessoa" lives={room.lives[other]} side={other}/>
+      <Hearts label={practice ? "Bot" : "Outra pessoa"} lives={room.lives[other]} side={other}/>
     </div>
     <div className="sheep-frame">
       <div className="sheep-stage-bar"><span><i/> {stageText}</span><span>{round ? `♫ ${bpm} BPM` : '☾ TURNO DA NOITE'}</span></div>
@@ -187,10 +197,10 @@ function SheepRoomSession({ code }: { code: string }) {
     </div>
 
     {phase === 'waiting' && <section className="sheep-panel sheep-waiting">
-      <div><span className="eyebrow">CÓDIGO DA SALA</span><h1>{code}</h1><p>{room.guest ? 'O rebanho está pronto. É só começar!' : 'Mande o convite para a outra pessoa.'}</p></div>
+      <div><span className="eyebrow">{practice ? 'SALA DE TREINO' : 'CÓDIGO DA SALA'}</span><h1>{code}</h1><p>{practice ? 'O bot já está na sala. Comece quando quiser.' : room.guest ? 'O rebanho está pronto. É só começar!' : 'Mande o convite para a outra pessoa.'}</p></div>
       <div className="sheep-panel-actions">
-        <button className="button button-outline" onClick={() => void copyLink()}>{copied ? 'Link copiado ✓' : 'Copiar convite'}</button>
-        {side === 'p1' ? <button className="button button-primary" disabled={!room.guest || busy || offline} onClick={() => void act(() => startSheepMatch(code, uid))}>Começar <span aria-hidden="true">→</span></button> : <span className="sheep-wait-text">Esperando quem criou a sala começar…</span>}
+        {!practice && <button className="button button-outline" onClick={() => void copyLink()}>{copied ? 'Link copiado ✓' : 'Copiar convite'}</button>}
+        {side === 'p1' ? <button className="button button-primary" disabled={!room.guest || busy || offline} onClick={() => void act(async () => (await loadSession()).startSheepMatch(code, uid))}>Começar <span aria-hidden="true">→</span></button> : <span className="sheep-wait-text">Esperando quem criou a sala começar…</span>}
       </div>
     </section>}
     {phase === 'run' && mood !== 'guess' && <section className="sheep-panel sheep-instruction">
@@ -198,12 +208,12 @@ function SheepRoomSession({ code }: { code: string }) {
       <p>{version === 4 && difficulty(round) >= 6 ? 'Agora vale estimar: conte o que conseguir e vá no seu melhor palpite!' : 'Conte cada ovelha quando ela entrar. Se der meia-volta, continua valendo uma só.'}</p>
     </section>}
     {phase === 'run' && mood === 'guess' && <GuessPanel key={`${room.match}_${round}`} remaining={seconds(deadline - time)}
-      sent={room.sent[side]} rivalSent={room.sent[other]} busy={busy || offline}
-      onGuess={guess => void act(async () => { await sendGuess(code, uid, room, guess); if (audible) sound.current?.play('click') })}/>}
-    {(phase === 'result' || phase === 'finished') && room.last && <ResultPanel room={room} side={side} total={total}
+      opponentName={practice ? "O bot" : "A outra pessoa"} sent={room.sent[side]} rivalSent={room.sent[other]} busy={busy || offline}
+      onGuess={guess => void act(async () => { await (await loadSession()).sendGuess(code, uid, room, guess); if (audible) sound.current?.play('click') })}/>}
+    {(phase === 'result' || phase === 'finished') && room.last && <ResultPanel room={room} side={side} total={total} opponentName={practice ? "Bot" : "Outra pessoa"}
       busy={busy || offline} remaining={seconds(anchor + REVEAL_MS - time)}
-      next={() => void act(() => nextSheepRound(code, room, clock))} canAdvance={canAdvance}
-      rematch={() => void act(() => sheepRematch(code, uid, room.match))}/>}
+      next={() => void act(async () => (await loadSession()).nextSheepRound(code, room, clock))} canAdvance={canAdvance}
+      rematch={() => void act(async () => (await loadSession()).sheepRematch(code, uid, room.match))}/>}
     {offline && <p className="connection-banner">Reconectando à sala… <button className="sheep-quiet" onClick={retryConnection}>Tentar agora</button></p>}
     {error && <p className="inline-error" role="alert">{error}</p>}
     <p className="sheep-foot">☾ Mesmo rebanho, dois palpites. <span>SALA {code}</span></p>
@@ -217,7 +227,7 @@ function Hearts({ label, lives, side }: { label: string; lives: number; side: Si
   </div>
 }
 
-function GuessPanel({ remaining, sent, rivalSent, busy, onGuess }: { remaining: number; sent: boolean; rivalSent: boolean; busy: boolean; onGuess: (n: number) => void }) {
+function GuessPanel({ opponentName, remaining, sent, rivalSent, busy, onGuess }: { opponentName: string; remaining: number; sent: boolean; rivalSent: boolean; busy: boolean; onGuess: (n: number) => void }) {
   const [value, setValue] = useState('')
   const panel = useRef<HTMLElement>(null)
   useEffect(() => { panel.current?.scrollIntoView({ block: 'nearest' }) }, [])
@@ -228,7 +238,7 @@ function GuessPanel({ remaining, sent, rivalSent, busy, onGuess }: { remaining: 
   }
   return <section ref={panel} className="sheep-panel sheep-guess">
     <div><span className="eyebrow">PALPITES EM SEGREDO</span><h1>{sent ? 'Palpite guardado!' : remaining ? 'Quantas passaram?' : 'O tempo acabou!'}</h1>
-      <p>{sent ? 'Esperando a revelação.' : rivalSent ? 'A outra pessoa já respondeu.' : 'Seu número só aparece no resultado.'}</p></div>
+      <p>{sent ? 'Esperando a revelação.' : rivalSent ? opponentName + ' já respondeu.' : 'Seu número só aparece no resultado.'}</p></div>
     {!sent && remaining > 0 && <form onSubmit={submit} className="sheep-guess-form">
       <label className="sr-only" htmlFor="sheep-guess">Seu palpite</label>
       <input id="sheep-guess" inputMode="numeric" autoComplete="off" placeholder="?" value={value} maxLength={2} disabled={!enabled}
@@ -239,8 +249,8 @@ function GuessPanel({ remaining, sent, rivalSent, busy, onGuess }: { remaining: 
   </section>
 }
 
-function ResultPanel({ room, side, total, remaining, busy, canAdvance, next, rematch }: {
-  room: SheepRoom; side: Side; total: number; remaining: number; busy: boolean; canAdvance: boolean; next: () => void; rematch: () => void
+function ResultPanel({ room, side, total, opponentName, remaining, busy, canAdvance, next, rematch }: {
+  room: SheepRoom; side: Side; total: number; opponentName: string; remaining: number; busy: boolean; canAdvance: boolean; next: () => void; rematch: () => void
 }) {
   const other = otherSide(side), guesses = room.last!
   const distance = (guess: number | null) => guess === null ? 100 : Math.abs(guess - total)
@@ -252,7 +262,7 @@ function ResultPanel({ room, side, total, remaining, busy, canAdvance, next, rem
   return <section className="sheep-panel sheep-result" aria-live="polite">
     <div className="sheep-result-number"><span>PASSARAM</span><strong>{total}</strong><small>ovelhas</small></div>
     <div className="sheep-result-copy"><span className="eyebrow">{finished ? 'FIM DA SONECA' : 'CONTAGEM REVELADA'}</span><h1>{title}</h1>
-      <p>Você: <b>{guesses[side] ?? 'sem palpite'}</b> <span aria-hidden="true">·</span> Outra pessoa: <b>{guesses[other] ?? 'sem palpite'}</b></p>
+      <p>Você: <b>{guesses[side] ?? 'sem palpite'}</b> <span aria-hidden="true">·</span> {opponentName}: <b>{guesses[other] ?? 'sem palpite'}</b></p>
     </div>
     {finished ? <button className="button button-primary" disabled={busy || room.replay[side]} onClick={rematch}>{room.replay[side] ? 'Esperando revanche…' : 'Revanche ↻'}</button>
       : paused ? <button className="button button-outline" disabled={busy || !canAdvance} onClick={next}>Próxima rodada →</button>

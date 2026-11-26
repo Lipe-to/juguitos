@@ -4,6 +4,7 @@ import { Header } from '../../layout/SiteHeader'
 import { BackLink } from '../../layout/Navigation'
 import { actionLabel, message } from '../../lib/errors'
 import { DEFAULT_TARGET_SCORE, MAP_WALLS, normalizeAction, positionsEqual, type Action, type Direction, type PlayerId } from './engine'
+import { PRACTICE_CODE } from '../practice'
 import type { Room } from './multiplayer'
 import DuelDialog from './DuelDialog'
 import DuelResultDialog from './DuelResultDialog'
@@ -15,6 +16,16 @@ const directions: { direction: Direction; label: string; symbol: string }[] = [
 export default function RastroRoomPage() {
   const { codigo = '' } = useParams()
   const code = codigo.toUpperCase()
+  return <RastroSession key={code} code={code}/>
+}
+
+function RastroSession({ code }: { code: string }) {
+  const practice = code === PRACTICE_CODE
+  const loadSession = useMemo(() => {
+    const openSession = () => practice ? import('./practice').then(({ createRastroPractice }) => createRastroPractice()) : import('./multiplayer')
+    let session: ReturnType<typeof openSession> | undefined
+    return () => session ??= openSession()
+  }, [practice])
   const inviteHref = useHref('/jogos/rastro/sala/' + code)
   const [uid, setUid] = useState('')
   const [room, setRoom] = useState<Room | null>(null)
@@ -36,7 +47,7 @@ export default function RastroRoomPage() {
   useEffect(() => {
     let stop: (() => void) | undefined
     let active = true
-    import('./multiplayer').then(async (multiplayer) => {
+    loadSession().then(async (multiplayer) => {
       const user = await multiplayer.waitForUser()
       if (!active) return
       setUid(user.uid)
@@ -46,21 +57,21 @@ export default function RastroRoomPage() {
       stop = multiplayer.subscribeRoom(code, (next) => { setRoom(next); setOnline(true); setError(next ? '' : 'Sala não encontrada.') }, (e) => { setOnline(false); setError(message(e)) })
     }).catch((e) => setError(message(e)))
     return () => { active = false; stop?.() }
-  }, [code])
+  }, [code, loadSession])
 
   useEffect(() => {
-    if (room?.status === 'PLAYING' && room.confirmations.p1 && room.confirmations.p2) void import('./multiplayer').then(({ resolveIfReady }) => resolveIfReady(code)).catch((e) => setError(message(e)))
-  }, [room, code])
+    if (!practice && room?.status === 'PLAYING' && room.confirmations.p1 && room.confirmations.p2) void import('./multiplayer').then(({ resolveIfReady }) => resolveIfReady(code)).catch((e) => setError(message(e)))
+  }, [room, code, practice])
 
   useEffect(() => {
-    if (room?.game?.duel && room.duelConfirmations?.p1 && room.duelConfirmations.p2) void import('./multiplayer').then(({ resolveDuelIfReady }) => resolveDuelIfReady(code)).catch((e) => setError(message(e)))
-  }, [room, code])
+    if (!practice && room?.game?.duel && room.duelConfirmations?.p1 && room.duelConfirmations.p2) void import('./multiplayer').then(({ resolveDuelIfReady }) => resolveDuelIfReady(code)).catch((e) => setError(message(e)))
+  }, [room, code, practice])
 
   useEffect(() => { setAction((a) => a.kind === 'move' ? { ...a, jump: false } : a) }, [room?.game?.round, room?.game?.seed])
 
   useEffect(() => {
-    if (room?.status === 'FINISHED' && room.revenge.p1 && room.revenge.p2) void import('./multiplayer').then(({ beginRevengeIfReady }) => beginRevengeIfReady(code)).catch((e) => setError(message(e)))
-  }, [room, code])
+    if (!practice && room?.status === 'FINISHED' && room.revenge.p1 && room.revenge.p2) void import('./multiplayer').then(({ beginRevengeIfReady }) => beginRevengeIfReady(code)).catch((e) => setError(message(e)))
+  }, [room, code, practice])
 
   useEffect(() => {
     function keyDown(event: KeyboardEvent) {
@@ -80,7 +91,7 @@ export default function RastroRoomPage() {
   async function confirm() {
     if (!uid || busy || !slot || !room?.game || room.game.duel || overlayOpen) return
     setBusy(true); setError('')
-    try { const { submitAction } = await import('./multiplayer'); await submitAction(code, uid, normalizeAction(action, room.game.jumps[slot])) }
+    try { const { submitAction } = await loadSession(); await submitAction(code, uid, normalizeAction(action, room.game.jumps[slot])) }
     catch (e) { setError(message(e)) }
     finally { setBusy(false) }
   }
@@ -91,19 +102,19 @@ export default function RastroRoomPage() {
   async function saveGoal() {
     const value = Number(goal)
     if (!Number.isInteger(value) || value < 5 || value > 100) { setError('Escolha uma meta de 5 a 100 pontos.'); return false }
-    const { updateTargetScore } = await import('./multiplayer')
+    const { updateTargetScore } = await loadSession()
     if (value !== savedGoal) await updateTargetScore(code, uid, value)
     return true
   }
   async function start() {
     if (!uid) return
     setBusy(true); setError('')
-    try { if (await saveGoal()) { const { startRoom } = await import('./multiplayer'); await startRoom(code, uid) } } catch (e) { setError(message(e)) } finally { setBusy(false) }
+    try { if (await saveGoal()) { const { startRoom } = await loadSession(); await startRoom(code, uid) } } catch (e) { setError(message(e)) } finally { setBusy(false) }
   }
   async function revenge() {
     if (!uid) return
     setBusy(true); setError('')
-    try { const { requestRevenge } = await import('./multiplayer'); await requestRevenge(code, uid) } catch (e) { setError(message(e)) } finally { setBusy(false) }
+    try { const { requestRevenge } = await loadSession(); await requestRevenge(code, uid) } catch (e) { setError(message(e)) } finally { setBusy(false) }
   }
 
   const myConfirmed = slot ? room?.confirmations[slot] ?? false : false
@@ -120,11 +131,11 @@ export default function RastroRoomPage() {
     <Header compact/>
     <section className="waiting-panel">
       <BackLink label="Voltar ao catálogo"/>
-      <span className="eyebrow">SALA DE JOGO · RASTRO</span>
+      <span className="eyebrow">{practice ? 'SALA DE TREINO · RASTRO' : 'SALA DE JOGO · RASTRO'}</span>
       <h1>{slot === 'p1' ? 'A sala está pronta.' : 'Você entrou na sala.'}</h1>
-      <p>{room.players.p2 ? 'A pessoa que criou a sala vai iniciar a partida.' : 'Falta só a outra pessoa chegar.'}</p>
+      <p>{practice ? 'O bot já está na sala. Comece quando quiser.' : room.players.p2 ? 'A pessoa que criou a sala vai iniciar a partida.' : 'Falta só a outra pessoa chegar.'}</p>
       <div className="room-code-label">CÓDIGO DA SALA</div>
-      <button className="room-code" onClick={copyLink} title="Copiar link da sala">{code}<span>{copied ? 'Copiado!' : '⧉ Copiar link'}</span></button>
+      {practice ? <div className="room-code">{code}</div> : <button className="room-code" onClick={copyLink} title="Copiar link da sala">{code}<span>{copied ? 'Copiado!' : '⧉ Copiar link'}</span></button>}
       <div className="waiting-players">
         <div className={`player-slot ${slot === 'p1' ? 'is-here' : ''}`}>
           <span className="player-avatar avatar-purple">1</span>
@@ -133,7 +144,7 @@ export default function RastroRoomPage() {
         </div>
         <div className={`player-slot ${slot === 'p2' ? 'is-here' : ''}`}>
           <span className="player-avatar avatar-lilac">2</span>
-          <div><b>{slot === 'p2' ? 'Você' : 'Convidado'}</b><small>{room.players.p2 ? slot === 'p2' ? 'Já está na sala' : 'Entrou na sala' : 'Aguardando chegada…'}</small></div>
+          <div><b>{practice ? 'Bot' : slot === 'p2' ? 'Você' : 'Convidado'}</b><small>{room.players.p2 ? slot === 'p2' ? 'Já está na sala' : 'Entrou na sala' : 'Aguardando chegada…'}</small></div>
           {room.players.p2 ? slot === 'p2' ? <i>✓</i> : <span className="slot-dots">···</span> : <span className="slot-dots">···</span>}
         </div>
       </div>
@@ -154,7 +165,7 @@ export default function RastroRoomPage() {
   const game = room.game
   const isFinished = room.status === 'FINISHED' || game.finished
   const myName = slot === 'p1' ? 'Você' : 'Você'
-  const opponentName = slot === 'p1' ? 'Convidado' : 'Quem criou a sala'
+  const opponentName = practice ? 'Bot' : slot === 'p1' ? 'Convidado' : 'Quem criou a sala'
   const requestedRevenge = room.revenge[slot]
 
   return <main className="page-shell game-shell">
@@ -168,14 +179,14 @@ export default function RastroRoomPage() {
         <div className="board-legend"><span><i className="legend-wall"/> parede</span><span><i className="legend-trail"/> rastro</span><span><i className="legend-crystal"/> cristal +1</span><span><i className="legend-special"/> especial +2</span></div>
       </section>
       <aside className="controls-panel">
-        {isFinished ? <><span className="eyebrow">FIM DE JOGO</span><h2>Mais uma?</h2><p className="control-hint">A revanche começa quando os dois aceitarem.</p><div className="revenge-status"><span className={requestedRevenge ? 'status-check done' : 'status-check'}>{requestedRevenge ? '✓' : '·'}</span><span>Você</span><b>{requestedRevenge ? 'aceitou' : 'ainda não aceitou'}</b></div><div className="revenge-status"><span className={room.revenge[opponentSlot] ? 'status-check done' : 'status-check'}>{room.revenge[opponentSlot] ? '✓' : '·'}</span><span>Outra pessoa</span><b>{room.revenge[opponentSlot] ? 'aceitou' : 'aguardando'}</b></div><button className="button button-primary button-large full-button" onClick={revenge} disabled={busy || requestedRevenge}>{requestedRevenge ? 'Pedido enviado ✓' : 'Pedir revanche'} <span>↗</span></button><BackLink label="Voltar ao catálogo"/></>
-      : <><span className="eyebrow">{myConfirmed ? 'JOGADA GUARDADA' : 'FAÇA SUA JOGADA'}</span><h2>{myConfirmed ? 'Agora é suspense…' : 'Pra onde vamos?'}</h2><p className="control-hint">Escolha seu caminho. Os dois movimentos são revelados juntos.</p><div className="direction-pad" aria-label="Escolha de movimento">{directions.map((item) => <button key={item.direction} disabled={myConfirmed || !!game.duel || overlayOpen || busy} className={`direction-button ${chosenDirection === item.direction ? 'selected' : ''}`} aria-label={item.label} aria-pressed={chosenDirection === item.direction} onClick={() => setAction({ kind: 'move', direction: item.direction, jump: isJump })}>{item.symbol}</button>)}<button disabled={myConfirmed || !!game.duel || overlayOpen || busy} className={`direction-button stay-button ${action.kind === 'stay' ? 'selected' : ''}`} aria-label="Permanecer parado" aria-pressed={action.kind === 'stay'} onClick={() => setAction({ kind: 'stay' })}>●</button></div><button className={`jump-card ${isJump ? 'jump-equipped' : ''}`} disabled={!game.jumps[slot] || action.kind === 'stay' || myConfirmed || !!game.duel || overlayOpen || busy} aria-pressed={isJump} onClick={() => setAction((a) => a.kind === 'move' ? { ...a, jump: !a.jump } : a)}><span className="jump-icon">↗</span><span><b>{isJump ? 'Salto equipado!' : 'Salto especial'}</b><small>{!game.jumps[slot] ? 'Já usado · siga andando' : action.kind === 'stay' ? 'Escolha uma direção primeiro' : 'Pule paredes e pessoas · 1 carga'}</small></span><span className="jump-badge">{!game.jumps[slot] ? '0/1' : isJump ? 'PRONTO' : '1/1'}</span></button><div className="selected-action"><span>SEU PLANO</span><b>{actionLabel(action)}</b><small>{myConfirmed ? 'Sua jogada está travada até a revelação.' : 'Pode mudar de ideia até confirmar.'}</small></div><button className="button button-primary button-large full-button confirm-button" disabled={busy || myConfirmed || !!game.duel || overlayOpen} onClick={confirm}>{myConfirmed ? 'Jogada confirmada ✓' : busy ? 'Enviando…' : 'Confirmar jogada'} {!myConfirmed && <span>→</span>}</button><div className="opponent-status"><span className={opponentConfirmed ? 'status-check done' : 'status-check'}>{opponentConfirmed ? '✓' : '·'}</span><span>{opponentConfirmed ? 'A outra pessoa já confirmou' : 'A outra pessoa está escolhendo'}</span></div><p className="keyboard-note">SETAS / WASD · ESPAÇO: PARAR<br/>J: SALTO · ENTER: CONFIRMAR</p></>}
+        {isFinished ? <><span className="eyebrow">FIM DE JOGO</span><h2>Mais uma?</h2><p className="control-hint">A revanche começa quando os dois aceitarem.</p><div className="revenge-status"><span className={requestedRevenge ? 'status-check done' : 'status-check'}>{requestedRevenge ? '✓' : '·'}</span><span>Você</span><b>{requestedRevenge ? 'aceitou' : 'ainda não aceitou'}</b></div><div className="revenge-status"><span className={room.revenge[opponentSlot] ? 'status-check done' : 'status-check'}>{room.revenge[opponentSlot] ? '✓' : '·'}</span><span>{opponentName}</span><b>{room.revenge[opponentSlot] ? 'aceitou' : 'aguardando'}</b></div><button className="button button-primary button-large full-button" onClick={revenge} disabled={busy || requestedRevenge}>{requestedRevenge ? 'Pedido enviado ✓' : 'Pedir revanche'} <span>↗</span></button><BackLink label="Voltar ao catálogo"/></>
+      : <><span className="eyebrow">{myConfirmed ? 'JOGADA GUARDADA' : 'FAÇA SUA JOGADA'}</span><h2>{myConfirmed ? 'Agora é suspense…' : 'Pra onde vamos?'}</h2><p className="control-hint">Escolha seu caminho. Os dois movimentos são revelados juntos.</p><div className="direction-pad" aria-label="Escolha de movimento">{directions.map((item) => <button key={item.direction} disabled={myConfirmed || !!game.duel || overlayOpen || busy} className={`direction-button ${chosenDirection === item.direction ? 'selected' : ''}`} aria-label={item.label} aria-pressed={chosenDirection === item.direction} onClick={() => setAction({ kind: 'move', direction: item.direction, jump: isJump })}>{item.symbol}</button>)}<button disabled={myConfirmed || !!game.duel || overlayOpen || busy} className={`direction-button stay-button ${action.kind === 'stay' ? 'selected' : ''}`} aria-label="Permanecer parado" aria-pressed={action.kind === 'stay'} onClick={() => setAction({ kind: 'stay' })}>●</button></div><button className={`jump-card ${isJump ? 'jump-equipped' : ''}`} disabled={!game.jumps[slot] || action.kind === 'stay' || myConfirmed || !!game.duel || overlayOpen || busy} aria-pressed={isJump} onClick={() => setAction((a) => a.kind === 'move' ? { ...a, jump: !a.jump } : a)}><span className="jump-icon">↗</span><span><b>{isJump ? 'Salto equipado!' : 'Salto especial'}</b><small>{!game.jumps[slot] ? 'Já usado · siga andando' : action.kind === 'stay' ? 'Escolha uma direção primeiro' : 'Pule paredes e pessoas · 1 carga'}</small></span><span className="jump-badge">{!game.jumps[slot] ? '0/1' : isJump ? 'PRONTO' : '1/1'}</span></button><div className="selected-action"><span>SEU PLANO</span><b>{actionLabel(action)}</b><small>{myConfirmed ? 'Sua jogada está travada até a revelação.' : 'Pode mudar de ideia até confirmar.'}</small></div><button className="button button-primary button-large full-button confirm-button" disabled={busy || myConfirmed || !!game.duel || overlayOpen} onClick={confirm}>{myConfirmed ? 'Jogada confirmada ✓' : busy ? 'Enviando…' : 'Confirmar jogada'} {!myConfirmed && <span>→</span>}</button><div className="opponent-status"><span className={opponentConfirmed ? 'status-check done' : 'status-check'}>{opponentConfirmed ? '✓' : '·'}</span><span>{opponentConfirmed ? practice ? 'O bot já confirmou' : 'A outra pessoa já confirmou' : 'A outra pessoa está escolhendo'}</span></div><p className="keyboard-note">SETAS / WASD · ESPAÇO: PARAR<br/>J: SALTO · ENTER: CONFIRMAR</p></>}
         {!online && <div className="connection-banner">Conexão instável. Reconectando…</div>}{error && <p className="inline-error" role="alert">{error}</p>}
       </aside>
     </div>
-    <footer className="game-footer"><span>Suas jogadas ficam em segredo até os dois confirmarem.</span><button onClick={copyLink}>{copied ? 'Link copiado ✓' : `Compartilhar sala ${code} ↗`}</button></footer>
+    <footer className="game-footer"><span>Suas jogadas ficam em segredo até os dois confirmarem.</span>{!practice && <button onClick={copyLink}>{copied ? 'Link copiado ✓' : `Compartilhar sala ${code} ↗`}</button>}</footer>
     {duelResultOpen && game.lastDuel && <DuelResultDialog key={duelResultKey} won={game.lastDuel.winner === slot} score={game.scores[slot]} finished={isFinished} onContinue={() => setDismissedDuel(duelResultKey)}/>}
-    {game.duel && <DuelDialog key={`${game.duel.id}_${game.duel.stage}`} duel={game.duel} confirmed={room.duelConfirmations?.[slot] ?? false} opponentConfirmed={room.duelConfirmations?.[opponentSlot] ?? false} onSubmit={async (position) => { const { submitDuelAttempt } = await import('./multiplayer'); await submitDuelAttempt(code, uid, game.duel!.id, game.duel!.stage, position) }}/>}
+    {game.duel && <DuelDialog key={`${game.duel.id}_${game.duel.stage}`} duel={game.duel} confirmed={room.duelConfirmations?.[slot] ?? false} opponentConfirmed={room.duelConfirmations?.[opponentSlot] ?? false} onSubmit={async (position) => { const { submitDuelAttempt } = await loadSession(); await submitDuelAttempt(code, uid, game.duel!.id, game.duel!.stage, position) }}/>}
   </main>
 }
 

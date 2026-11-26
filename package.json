@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint src",
-    "test": "node --test worker/field.test.js && vitest run src/games/rastro src/games/ovelhas src/catalog",
+    "test": "node --test worker/field.test.js && vitest run src/games/practice.test.ts src/games/rastro src/games/ovelhas src/catalog",
     "test:minas:online": "node scripts/minas-local-check.mjs",
     "test:watch": "vitest",
     "test:rules": "vitest run --no-file-parallelism src/firebase/firestore.rules.test.ts src/firebase/sheep.rules.test.ts",
