@@ -156,7 +156,7 @@ function RaceView({ code }: { code: string }) {
               disabled={!live || blocked || clue !== undefined}
               onContextMenu={e => { e.preventDefault(); if (clue === undefined) void toggleFlag(i) }}
               onKeyDown={e => { if (e.key.toLowerCase() === 'f' && clue === undefined) { e.preventDefault(); void toggleFlag(i) } }}
-              onClick={activate}>{clue ?? (flagged ? '⚑' : blocked && player.bomb === i ? '✹' : '')}</button>
+              onClick={activate}>{clue === 0 ? null : clue ?? (flagged ? '⚑' : blocked && player.bomb === i ? '✹' : '')}</button>
           })}
           <div className="mine-edge">Largada</div>
         </div></div>

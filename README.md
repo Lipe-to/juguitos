@@ -22,7 +22,7 @@ Digite **`0`** no catálogo e escolha um jogo, ou use **Treinar com bot** na tel
 
 ### Campo Minado x1
 
-- **Largada:** cada mapa começa com duas ou três casas seguras já abertas na linha de baixo. Desde o primeiro passo, abra uma casa fechada que encoste pelo lado numa casa aberta. Zeros revelam a área segura ao redor, e a chegada fica reservada para o clique que marca o ponto.
+- **Largada:** cada mapa começa com duas ou três casas seguras já abertas na linha de baixo. Desde o primeiro passo, abra uma casa fechada que encoste pelo lado numa casa aberta. Casas abertas em branco indicam zero minas vizinhas. Ao revelar uma dessas casas, a área segura ao redor também se abre. Abra uma casa na chegada para marcar o ponto.
 - **Passos e pistas:** abra casas com contorno para avançar para uma vizinha pelo lado. Os números contam minas nas oito casas ao redor, inclusive diagonais. Abrir uma casa segura na linha de cima completa o mapa.
 - **Bandeiras:** botão direito marca ou desmarca uma casa fechada. Em telas touch, use **Modo bandeira**; no teclado, foque uma casa e pressione **F**. O clique normal abre somente casas alcançáveis.
 - **Retomada:** a identidade anônima fica no armazenamento local do navegador. Recarregar a mesma sala recupera sua vaga, mapa, bandeiras e tempo de bloqueio; use o mesmo navegador para manter essa identidade.
