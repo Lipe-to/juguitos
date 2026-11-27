@@ -46,7 +46,7 @@ export default function SheepIntroPage() {
       </>}
       joinForm={<form className="game-intro-join-form" onSubmit={enter}>
         <label className="sr-only" htmlFor="sheep-code">Código da sala</label>
-        <input id="sheep-code" value={code} maxLength={PRACTICE_CODE.length} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="EX.: O7KM2P" onChange={e => { setCode(e.target.value); setError('') }}/>
+        <input id="sheep-code" value={code} maxLength={6} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="EX.: O7KM2P" onChange={e => { setCode(e.target.value); setError('') }}/>
         <button className="button button-outline" type="submit">Entrar</button>
       </form>}
       status={<>{!firebaseReady && <p className="setup-note">{firebaseSetupMessage()}</p>}{error && <p className="inline-error" role="alert">{error}</p>}</>}

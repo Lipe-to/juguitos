@@ -43,7 +43,7 @@ export default function Intro() {
       </>}
       joinForm={<form className="game-intro-join-form" onSubmit={enter}>
         <label className="sr-only" htmlFor="mines-code">Código da sala</label>
-        <input id="mines-code" value={code} onChange={e => { setCode(e.target.value); setError('') }} placeholder="EX.: I7KM2P" maxLength={PRACTICE_CODE.length} autoComplete="off" autoCapitalize="characters" spellCheck={false}/>
+        <input id="mines-code" value={code} onChange={e => { setCode(e.target.value); setError('') }} placeholder="EX.: I7KM2P" maxLength={6} autoComplete="off" autoCapitalize="characters" spellCheck={false}/>
         <button className="button button-outline" type="submit">Entrar</button>
       </form>}
       status={error && <p className="inline-error" role="alert">{error}</p>}

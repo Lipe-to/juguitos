@@ -5,7 +5,7 @@
 - O juguitos! reúne minijogos originais para duas pessoas, em português do Brasil. O fluxo comum passa pelo catálogo, tutorial curto, criação ou entrada em sala, partida e resultado.
 - Priorize serviços gratuitos que interrompam operações ao esgotar a cota. Peça autorização explícita antes de habilitar faturamento, contratar serviços ou usar recursos que cobrem por excedente.
 - O frontend usa React, TypeScript, Vite e React Router. O GitHub Pages e o Firebase Hosting servem os arquivos estáticos. RASTRO e Conta, Ovelha! usam Firebase Spark. Campo Minado x1 usa Cloudflare Workers Free com Durable Objects SQLite.
-- O código fixo `0000000000` abre o treino com bot individual nos três jogos. No catálogo, o código abre o seletor de jogo. Na entrada de cada jogo, há um atalho de treino. Cada aba tem seu próprio estado, que reinicia ao recarregar. Os módulos de treino reutilizam as regras dos jogos e não acessam Firebase ou o Worker.
+- O código fixo `0` abre o treino com bot individual nos três jogos. No catálogo, o código abre o seletor de jogo. Na entrada de cada jogo, há um atalho de treino. Cada aba tem seu próprio estado, que reinicia ao recarregar. Os módulos de treino reutilizam as regras dos jogos e não acessam Firebase ou o Worker.
 
 ## Mapa do código
 

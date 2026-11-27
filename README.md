@@ -18,7 +18,7 @@ As três telas de entrada seguem a mesma hierarquia, usam a identidade roxa do c
 
 ### Treino com bot
 
-Digite **`0000000000`** no catálogo e escolha um jogo, ou use **Treinar com bot** na tela de entrada de qualquer jogo. A sala já tem um bot e é individual. A partida acontece no navegador, sem login ou uso da cota do multiplayer. Recarregar a página volta à sala de espera para começar outro treino.
+Digite **`0`** no catálogo e escolha um jogo, ou use **Treinar com bot** na tela de entrada de qualquer jogo. A sala já tem um bot e é individual. A partida acontece no navegador, sem login ou uso da cota do multiplayer. Recarregar a página volta à sala de espera para começar outro treino.
 
 ### Campo Minado x1
 

@@ -34,11 +34,11 @@ describe('catalog tutorial entry', () => {
   })
   it('opens the game picker for the shared practice code', () => {
     render(<MemoryRouter><CatalogPage/></MemoryRouter>)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Código da sala' }), { target: { value: '0000000000' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Código da sala' }), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }))
     expect(screen.getByRole('heading', { name: 'Qual jogo você quer testar?' })).toBeTruthy()
     for (const [id, name] of [['rastro', 'RASTRO'], ['ovelhas', 'Conta, Ovelha!'], ['minas', 'Campo Minado x1']]) {
-      expect(screen.getByRole('link', { name }).getAttribute('href')).toBe(`/jogos/${id}/sala/0000000000`)
+      expect(screen.getByRole('link', { name }).getAttribute('href')).toBe(`/jogos/${id}/sala/0`)
     }
   })
 })

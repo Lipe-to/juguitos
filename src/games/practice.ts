@@ -1,4 +1,4 @@
-export const PRACTICE_CODE = '0000000000'
+export const PRACTICE_CODE = '0'
 export const PRACTICE_USER = 'local-player'
 export const PRACTICE_BOT = 'local-bot'
 
